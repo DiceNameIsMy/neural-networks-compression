@@ -20,4 +20,5 @@ source $VENV_DIR/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 pip install -r pytorch_requirements.txt --index-url https://download.pytorch.org/whl/cpu
+pip install -r colab_requirements.txt
 echo "Required packages installed from requirements.txt"

@@ -1,0 +1,2 @@
+ucimlrepo==0.0.7
+pymoo==0.6.1.3
