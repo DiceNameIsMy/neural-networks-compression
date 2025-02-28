@@ -1,7 +1,7 @@
 import numpy as np
 from ucimlrepo import fetch_ucirepo
 
-from src.datasets.dataset import Dataset, cache_to_file
+from datasets.dataset import Dataset, cache_to_file
 
 
 @cache_to_file(name="vertebral")

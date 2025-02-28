@@ -2,16 +2,11 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-from torch import nn
 import torch.optim as optim
+from torch import nn
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from src.models.quantization import (
-    ActivationFunc,
-    QMode,
-    BinaryActivation,
-    QuantizeLayer,
-)
+from models.quantization import ActivationFunc, BinaryActivation, QMode, QuantizeLayer
 
 
 @dataclass

@@ -3,11 +3,10 @@ from dataclasses import dataclass
 import numpy as np
 from pymoo.core.problem import ElementwiseProblem
 
-from src.constants import EPOCHS
-from src.datasets.vertebral_dataset import VertebralDataset
-from src.models.mlp import ModelParams, evaluate_model
-from src.models.quantization import ActivationFunc, QMode
-
+from constants import EPOCHS
+from datasets.vertebral_dataset import VertebralDataset
+from models.mlp import ModelParams, evaluate_model
+from models.quantization import ActivationFunc, QMode
 
 BITWIDTHS_MAPPING = (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 32)
 LEARNING_RATES_MAPPING = (

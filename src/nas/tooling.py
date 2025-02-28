@@ -1,21 +1,20 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-from pymoo.core.result import Result
 from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.result import Result
 from pymoo.operators.crossover.sbx import SBX
-from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.mutation.pm import PM
+from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
-from pymoo.termination import get_termination
 from pymoo.optimize import minimize
+from pymoo.termination import get_termination
 
-from src.constants import SEED
-from src.datasets.dataset import Dataset
-from src.models.mlp import ModelParams, evaluate_model
-from src.models.quantization import ActivationFunc
-from src.nas.mlp_nas_problem import NASParams, NASProblem, get_cost_approximation
+from constants import SEED
+from datasets.dataset import Dataset
+from models.mlp import ModelParams, evaluate_model
+from models.quantization import ActivationFunc
+from nas.mlp_nas_problem import NASParams, NASProblem, get_cost_approximation
 
 
 def get_hardware_cost_approximation(df: pd.DataFrame, dataset):
