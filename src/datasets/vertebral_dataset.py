@@ -1,40 +1,7 @@
 import numpy as np
 from ucimlrepo import fetch_ucirepo
 
-import os
-import pickle
-from functools import wraps
-
-from datasets.dataset import Dataset
-
-
-def cache_to_file(name: str, cache_dir="datasets_cache"):
-    def decorator(func):
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            cache_file = os.path.join(cache_dir, f"{name}_cache.pkl")
-
-            # Create cache directory if it does not exist
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir)
-
-            # Load from cache if exists
-            if os.path.exists(cache_file):
-                with open(cache_file, "rb") as f:
-                    return pickle.load(f)
-
-            result = func(*args, **kwargs)
-
-            # Save to cache
-            with open(cache_file, "wb") as f:
-                pickle.dump(result, f)
-
-            return result
-
-        return wrapper
-
-    return decorator
+from datasets.dataset import Dataset, cache_to_file
 
 
 @cache_to_file(name="vertebral")
