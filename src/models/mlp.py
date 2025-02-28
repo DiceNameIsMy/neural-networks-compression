@@ -6,7 +6,12 @@ from torch import nn
 import torch.optim as optim
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from quantization import ActivationFunc, QMode, BinaryActivation, QuantizeLayer
+from src.models.quantization import (
+    ActivationFunc,
+    QMode,
+    BinaryActivation,
+    QuantizeLayer,
+)
 
 
 @dataclass
