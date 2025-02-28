@@ -3,7 +3,7 @@ from torch.utils import data
 
 from sklearn.model_selection import train_test_split
 
-from src.constants import BATCH_SIZE, SEED, VALIDATION_SPLIT
+from constants import BATCH_SIZE, SEED, VALIDATION_SPLIT
 
 
 class Dataset(data.Dataset):

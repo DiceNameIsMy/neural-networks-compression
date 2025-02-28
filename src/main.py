@@ -1,6 +1,6 @@
-from src.datasets.vertebral_dataset import VertebralDataset
-from src.mlp import ModelParams, test_model
-from src.quantization import ActivationFunc, QMode
+from datasets.vertebral_dataset import VertebralDataset
+from mlp import ModelParams, test_model
+from quantization import ActivationFunc, QMode
 
 
 p = ModelParams(

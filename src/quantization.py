@@ -3,7 +3,7 @@ import enum
 
 import torch
 
-from src.constants import DEVICE
+from constants import DEVICE
 
 
 class QMode(enum.Enum):

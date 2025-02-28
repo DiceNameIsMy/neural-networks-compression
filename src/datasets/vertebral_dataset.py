@@ -5,7 +5,7 @@ import os
 import pickle
 from functools import wraps
 
-from src.datasets.dataset import Dataset
+from datasets.dataset import Dataset
 
 
 def cache_to_file(name: str, cache_dir="datasets_cache"):
