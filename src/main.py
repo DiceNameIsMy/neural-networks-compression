@@ -3,10 +3,10 @@ from models.mlp import ModelParams, test_model
 from models.quantization import ActivationFunc, QMode
 
 p = ModelParams(
-    input_size=VertebralDataset.input_size,
-    input_bitwidth=32,
-    output_size=VertebralDataset.output_size,
-    hidden_size=32,
+    in_layer_height=VertebralDataset.input_size,
+    in_bitwidth=32,
+    out_height=VertebralDataset.output_size,
+    hidden_height=32,
     hidden_bitwidth=32,
     model_layers=2,
     learning_rate=0.01,

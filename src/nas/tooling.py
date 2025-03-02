@@ -108,10 +108,10 @@ def train_pf(pf, DatasetClass, epochs):
 
     def _train_conf(conf):
         params = ModelParams(
-            input_size=DatasetClass.input_size,
-            input_bitwidth=conf["input_bitwidth"],
-            output_size=DatasetClass.output_size,
-            hidden_size=conf["hidden_height"],
+            in_layer_height=DatasetClass.input_size,
+            in_bitwidth=conf["input_bitwidth"],
+            out_height=DatasetClass.output_size,
+            hidden_height=conf["hidden_height"],
             hidden_bitwidth=conf["hidden_bitwidth"],
             model_layers=conf["layers_amount"],
             learning_rate=conf["learning_rate"],
@@ -143,7 +143,12 @@ def run_NAS_pipeline(
 
     termination = get_termination("n_gen", n_gen)
     res = minimize(
-        problem, algorithm, termination, seed=SEED, save_history=False, verbose=True
+        problem,
+        algorithm,
+        termination,
+        seed=SEED,
+        save_history=False,
+        verbose=True,
     )
 
     problem.show_metadata()
@@ -164,10 +169,10 @@ def run_simple_grid_search(DatasetClass: Dataset):
     for layers in range(2, 4 + 1):
         for layer_size in range(4, 17, 4):
             p = ModelParams(
-                input_size=DatasetClass.input_size,
-                input_bitwidth=8,
-                output_size=DatasetClass.output_size,
-                hidden_size=layer_size,
+                in_layer_height=DatasetClass.input_size,
+                in_bitwidth=8,
+                out_height=DatasetClass.output_size,
+                hidden_height=layer_size,
                 hidden_bitwidth=8,
                 model_layers=layers,
                 learning_rate=0.01,
@@ -178,11 +183,11 @@ def run_simple_grid_search(DatasetClass: Dataset):
 
             accuracy = evaluate_model(p, train_loader, test_loader, times=3)
             cost = get_cost_approximation(
-                p.input_size,
-                p.output_size,
+                p.in_layer_height,
+                p.out_height,
                 p.model_layers,
-                p.hidden_size,
-                p.input_bitwidth,
+                p.hidden_height,
+                p.in_bitwidth,
                 p.hidden_bitwidth,
             )
             no_NAS_datapoints.append([layers, layer_size, accuracy, cost])

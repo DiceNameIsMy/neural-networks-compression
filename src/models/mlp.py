@@ -12,14 +12,14 @@ from models.quantization import ActivationFunc, BinaryActivation, QMode, Quantiz
 @dataclass
 class ModelParams:
     # Dataset specific params
-    input_size: int  # TODO: Rename to input_layer_height
-    input_bitwidth: int
-    output_size: int  # TODO: Rename to output_layer_height
+    in_layer_height: int
+    in_bitwidth: int
+    out_height: int
 
     # MLP Artchitecture params
-    hidden_size: int  # TODO: Rename to hidden_layer_height
+    hidden_height: int
     hidden_bitwidth: int
-    model_layers: int  # TODO: Rename to num_layers
+    model_layers: int
     activation: ActivationFunc  # `binarize` or `relu`
 
     # Training params
@@ -35,51 +35,35 @@ class MLP(nn.Module):
     def __init__(self, params: ModelParams):
         super(MLP, self).__init__()
         self.p = params
+        if self.p.model_layers < 2:
+            raise Exception("Model must have at least 2 layers")
 
         layers = []
 
-        if self.p.model_layers == 1:
-            # Skip setup of hidden layers
-            if self.p.input_bitwidth < 32:
+        hidden_layers_count = max(0, self.p.model_layers - 2)
+        layer_heights = (
+            [self.p.in_layer_height]
+            + [self.p.hidden_height] * hidden_layers_count
+            + [self.p.out_height]
+        )
+
+        if self.p.in_bitwidth < 32:
+            layers.append(QuantizeLayer(self.p.quantization_mode, self.p.in_bitwidth))
+
+        # Setup hidden layers
+        for _ in range(2, self.p.model_layers):
+            layers.append(nn.Linear(layer_heights.pop(0), layer_heights[0]))
+            if self.p.hidden_bitwidth < 32:
                 layers.append(
-                    QuantizeLayer(self.p.quantization_mode, self.p.input_bitwidth)
+                    QuantizeLayer(self.p.quantization_mode, self.p.hidden_bitwidth)
                 )
-            layers.append(nn.Linear(self.p.input_size, self.p.output_size))
-            layers.append(self._get_activation_func(params))
             if self.p.dropout_rate > 0:
                 layers.append(nn.Dropout(self.p.dropout_rate))
 
-            self.model = nn.Sequential(*layers)
-            return
-
-        # Input layer to first hidden layer
-        if self.p.input_bitwidth < 32:
-            layers.append(
-                QuantizeLayer(self.p.quantization_mode, self.p.input_bitwidth)
-            )
-        layers.append(nn.Linear(self.p.input_size, self.p.hidden_size))
-        layers.append(self._get_activation_func(self.p))
-        if self.p.dropout_rate > 0:
-            layers.append(nn.Dropout(self.p.dropout_rate))
-
-        # Setup hidden layers
-        if self.p.model_layers > 2:
-            for i in range(2, self.p.model_layers):
-                if self.p.hidden_bitwidth < 32:
-                    layers.append(
-                        QuantizeLayer(self.p.quantization_mode, self.p.hidden_bitwidth)
-                    )
-                layers.append(nn.Linear(self.p.hidden_size, self.p.hidden_size))
-                layers.append(self._get_activation_func(params))
-                if self.p.dropout_rate > 0:
-                    layers.append(nn.Dropout(self.p.dropout_rate))
+            layers.append(self._get_activation_func(params))
 
         # Output layer
-        if self.p.hidden_bitwidth < 32:
-            layers.append(
-                QuantizeLayer(self.p.quantization_mode, self.p.hidden_bitwidth)
-            )
-        layers.append(nn.Linear(self.p.hidden_size, self.p.output_size))
+        layers.append(nn.Linear(layer_heights.pop(0), layer_heights[0]))
 
         # Combine all layers into Sequential model
         self.model = nn.Sequential(*layers)

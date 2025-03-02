@@ -8,7 +8,7 @@ from datasets.vertebral_dataset import VertebralDataset
 from models.mlp import ModelParams, evaluate_model
 from models.quantization import ActivationFunc, QMode
 
-BITWIDTHS_MAPPING = (2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 32)
+BITWIDTHS_MAPPING = (2, 3, 4, 5, 32)
 LEARNING_RATES_MAPPING = (
     0.0001,
     0.0002,
@@ -27,8 +27,8 @@ LEARNING_RATES_MAPPING = (
 @dataclass
 class NASParams:
     hidden_height_bounds: tuple = (2, 8)
-    input_bitwidth_bounds: tuple = (0, 11)
-    hidden_bitwidth_bounds: tuple = (0, 11)
+    input_bitwidth_bounds: tuple = (0, len(BITWIDTHS_MAPPING) - 1)
+    hidden_bitwidth_bounds: tuple = (0, len(BITWIDTHS_MAPPING) - 1)
     layers_amount_bounds: tuple = (2, 8)
     learning_rate_bounds: tuple = (0, 10)
     quantization_mode_bounds: tuple = (0, 1)
@@ -67,28 +67,19 @@ def get_multiplications_approximation(
 ) -> tuple[int, int, int]:
     hidden_layers = max(layers_amount - 2, 0)
 
-    # If there are no hidden layers, second layer has the output size
-    second_layer_perceptrons = output_size if hidden_layers == 0 else hidden_height
+    if hidden_layers == 0:
+        return input_size * output_size, 0, 0
 
-    # If there are no hidden layers, second layer has the input size
-    almost_last_layer_perceptrons = input_size if hidden_layers == 0 else hidden_height
+    elif hidden_layers == 1:
+        return input_size * hidden_height, 0, hidden_height * output_size
 
-    first_layer_multiplications = input_size * second_layer_perceptrons
-
-    # When there are 0 or 1 hidden layers,
-    # there are no multiplications between hidden layers.
-    hidden_layers_multiplications = (hidden_height * hidden_height) * max(
-        0, (hidden_layers - 1)
-    )
-
-    # last_layer_multiplications = 0 if hidden_layers == 0 else almost_last_layer_perceptrons * output_size
-    last_layer_multiplications = almost_last_layer_perceptrons * output_size
-
-    return (
-        first_layer_multiplications,
-        hidden_layers_multiplications,
-        last_layer_multiplications,
-    )
+    else:
+        hidden_layers_mul = hidden_height * hidden_height * (hidden_layers - 1)
+        return (
+            input_size * hidden_height,
+            hidden_layers_mul,
+            hidden_height * output_size,
+        )
 
 
 def get_cost_approximation(
@@ -209,10 +200,10 @@ class NASProblem(ElementwiseProblem):
 
     def conf_to_model_params(self, conf):
         return ModelParams(
-            input_size=self.dataset.input_size,
-            input_bitwidth=conf["input_bitwidth"],
-            output_size=self.dataset.output_size,
-            hidden_size=conf["hidden_height"],
+            in_layer_height=self.dataset.input_size,
+            in_bitwidth=conf["input_bitwidth"],
+            out_height=self.dataset.output_size,
+            hidden_height=conf["hidden_height"],
             hidden_bitwidth=conf["hidden_bitwidth"],
             model_layers=conf["layers_amount"],
             quantization_mode=conf["quantization_mode"],
@@ -228,6 +219,7 @@ class NASProblem(ElementwiseProblem):
 def test_objectives():
     nas_params = NASParams()
     p = NASProblem(VertebralDataset, nas_params)
+    print(nas_params.get_xu())
     print(p.conf_to_model_params(p._expand_x(nas_params.get_xl())))
     print(p.conf_to_model_params(p._expand_x(nas_params.get_xu())))
 
