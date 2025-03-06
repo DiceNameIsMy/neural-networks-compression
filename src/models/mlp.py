@@ -84,7 +84,7 @@ class MLP(nn.Module):
 
 
 def train_epoch(
-    model, optimizer, criterion, train_loader, epoch_no, *, print_state=True
+    model: MLP, optimizer, criterion, train_loader, epoch_no, *, print_state=True
 ):
     model.train()
 
@@ -114,7 +114,7 @@ def train_epoch(
 
 
 @torch.no_grad()
-def test(model, criterion, test_loader, *, print_state=True):
+def test(model: MLP, criterion, test_loader, *, print_state=True):
     model.eval()
 
     loss_sum = 0
