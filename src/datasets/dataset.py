@@ -3,9 +3,8 @@ import pickle
 from functools import wraps
 
 import torch
-from torch.utils import data
-
 from sklearn.model_selection import train_test_split
+from torch.utils import data
 
 from constants import BATCH_SIZE, SEED, VALIDATION_SPLIT
 
@@ -25,7 +24,9 @@ class Dataset(data.Dataset):
         return self.X[idx], self.y[idx]
 
     @classmethod
-    def _get_dataloaders(cls, X, y, batch_size=BATCH_SIZE):
+    def _get_dataloaders(
+        cls, X, y, batch_size=BATCH_SIZE
+    ) -> tuple[data.DataLoader, data.DataLoader]:
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=VALIDATION_SPLIT, random_state=SEED
         )
@@ -38,7 +39,9 @@ class Dataset(data.Dataset):
         return train_loader, test_loader
 
     @classmethod
-    def get_dataloaders(cls, batch_size=BATCH_SIZE):
+    def get_dataloaders(
+        cls, batch_size=BATCH_SIZE
+    ) -> tuple[data.DataLoader, data.DataLoader]:
         raise NotImplementedError("get_dataloaders is not implemented")
 
 

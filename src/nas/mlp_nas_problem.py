@@ -7,8 +7,9 @@ from constants import EPOCHS
 from datasets.vertebral_dataset import VertebralDataset
 from models.mlp import ModelParams, evaluate_model
 from models.quantization import ActivationFunc, QMode
+from src.datasets.dataset import Dataset
 
-BITWIDTHS_MAPPING = (2, 3, 4, 5, 32)
+BITWIDTHS_MAPPING = (2, 3, 4, 5, 7, 10, 14, 32)
 LEARNING_RATES_MAPPING = (
     0.0001,
     0.0002,
@@ -26,11 +27,11 @@ LEARNING_RATES_MAPPING = (
 
 @dataclass
 class NASParams:
-    hidden_height_bounds: tuple = (2, 8)
+    hidden_height_bounds: tuple = (4, 16)
     input_bitwidth_bounds: tuple = (0, len(BITWIDTHS_MAPPING) - 1)
     hidden_bitwidth_bounds: tuple = (0, len(BITWIDTHS_MAPPING) - 1)
     layers_amount_bounds: tuple = (2, 8)
-    learning_rate_bounds: tuple = (0, 10)
+    learning_rate_bounds: tuple = (0, len(LEARNING_RATES_MAPPING) - 1)
     quantization_mode_bounds: tuple = (0, 1)
 
     epochs: int = EPOCHS
@@ -62,7 +63,7 @@ class NASParams:
         )
 
 
-def get_multiplications_approximation(
+def get_mult_approximation(
     input_size, output_size, layers_amount, hidden_height
 ) -> tuple[int, int, int]:
     hidden_layers = max(layers_amount - 2, 0)
@@ -90,7 +91,7 @@ def get_cost_approximation(
     input_bitwidth,
     hidden_bitwidth,
 ):
-    first_second, hidden_hidden, before_last_last = get_multiplications_approximation(
+    first_second, hidden_hidden, before_last_last = get_mult_approximation(
         input_size, output_size, layers_amount, hidden_height
     )
 
@@ -102,8 +103,8 @@ def get_cost_approximation(
 
 
 class NASProblem(ElementwiseProblem):
-    params = None
-    dataset = None
+    params: NASParams
+    dataset: Dataset
     train_loader = None
     test_loader = None
 
@@ -191,7 +192,7 @@ class NASProblem(ElementwiseProblem):
                 [LEARNING_RATES_MAPPING[x] for x in X[:, 4].astype(int)]
             ),
             "quantization_mode": np.where(
-                X[:, 5].astype(int) == 10, QMode.DET, QMode.STOCH
+                X[:, 5].astype(int) == 1, QMode.DET, QMode.STOCH
             ),
         }
 
@@ -219,7 +220,6 @@ class NASProblem(ElementwiseProblem):
 def test_objectives():
     nas_params = NASParams()
     p = NASProblem(VertebralDataset, nas_params)
-    print(nas_params.get_xu())
     print(p.conf_to_model_params(p._expand_x(nas_params.get_xl())))
     print(p.conf_to_model_params(p._expand_x(nas_params.get_xu())))
 

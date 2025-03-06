@@ -79,6 +79,7 @@ class Quantize(torch.autograd.function.InplaceFunction):
             output = input.clone()
 
         scale = (2**numBits - 1) / (input.max() - input.min())
+
         output = output.mul(scale).clamp(-(2 ** (numBits - 1) + 1), 2 ** (numBits - 1))
 
         if quant_mode == QMode.DET:

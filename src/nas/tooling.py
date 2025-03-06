@@ -1,3 +1,6 @@
+import os
+from dataclasses import dataclass
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -17,7 +20,7 @@ from models.quantization import ActivationFunc
 from nas.mlp_nas_problem import NASParams, NASProblem, get_cost_approximation
 
 
-def get_hardware_cost_approximation(df: pd.DataFrame, dataset):
+def get_hardware_cost_approximation(df: pd.DataFrame, dataset: Dataset):
     data = list()
     for _, row in df.iterrows():
         data.append(
@@ -37,6 +40,7 @@ def get_hardware_cost_approximation(df: pd.DataFrame, dataset):
 def get_pareto_points(x, y):
     indexes = np.arange(0, len(x))
     pareto_front = []
+
     # Sort by higest accuracy first. If points have same accuracy, put the higher cost first
     for point in sorted(
         np.column_stack(((x, y, indexes))), key=lambda v: (-v[0], -v[1])
@@ -80,27 +84,26 @@ def plot_pareto_front(accuracy, cost, pareto_front):
     plt.show()
 
 
-def get_population_df(problem, res: Result, plot=True):
+def get_population_df(problem: NASProblem, res: Result, plot=True):
     # Create a dataframe of final population
     population_conf = problem._expand_X(res.X)
-    df = pd.DataFrame(population_conf)
+    all_offs = pd.DataFrame(population_conf)
 
     accuracy = 100 - res.F[:, 0]
-    df["accuracy"] = accuracy
+    all_offs["accuracy"] = accuracy
 
-    cost = get_hardware_cost_approximation(df, problem.dataset)
-    df["cost"] = cost
+    cost = get_hardware_cost_approximation(all_offs, problem.dataset)
+    all_offs["cost"] = cost
 
     # Compute & Plot pareto front
-
-    pareto_front = np.array(get_pareto_points(df["accuracy"], df["cost"]))
+    pareto_front = np.array(get_pareto_points(all_offs["accuracy"], all_offs["cost"]))
 
     if plot:
         plot_pareto_front(accuracy, cost, pareto_front)
 
     pareto_idxs = pareto_front[:, 2]
-    pf = df.iloc[pareto_idxs.astype(int)]
-    return {"all": df, "pareto": pf}
+    pareto_front = all_offs.iloc[pareto_idxs.astype(int)]
+    return (all_offs, pareto_front)
 
 
 def train_pf(pf, DatasetClass, epochs):
@@ -128,37 +131,70 @@ def train_pf(pf, DatasetClass, epochs):
     return pf.apply(_train_conf, axis=1)
 
 
+@dataclass
+class NASResult:
+    res: Result
+    all: pd.DataFrame
+    pareto: pd.DataFrame
+    pareto_trained: pd.DataFrame
+
+    def get_pf_population(self):
+        return np.array([e.X for e in self.res.history[-1].off])
+
+    def store_pf_population(self, path: str):
+        pop = self.get_pf_population()
+        pd.DataFrame(pop).to_csv(path, index=False)
+
+    @classmethod
+    def load_population(cls, path: str | None):
+        if path is None:
+            return None
+        if not os.path.exists(path):
+            return None
+
+        return pd.read_csv(path).values
+
+
 def run_NAS_pipeline(
-    DatasetClass: Dataset, params: NASParams, n_gen=1, train_pf_epochs=10
-):
+    DatasetClass: Dataset,
+    params: NASParams,
+    n_gen=1,
+    train_pf_epochs=10,
+    population_cache_file: str | None = None,
+) -> NASResult:
+
+    # Run NAS
     problem = NASProblem(DatasetClass, params)
+
+    sampling = NASResult.load_population(population_cache_file)
+    if sampling is None:
+        sampling = IntegerRandomSampling()
 
     algorithm = NSGA2(
         pop_size=params.population_size,
         n_offsprings=params.population_offspring_count,
-        sampling=IntegerRandomSampling(),
+        sampling=sampling,
         crossover=SBX(prob=0.9, eta=15, repair=RoundingRepair()),
         mutation=PM(eta=20, repair=RoundingRepair()),
     )
-
     termination = get_termination("n_gen", n_gen)
     res = minimize(
         problem,
         algorithm,
         termination,
         seed=SEED,
-        save_history=False,
+        save_history=True,
         verbose=True,
     )
 
     problem.show_metadata()
 
-    population = get_population_df(problem, res)
+    # Prepare df's for interpretation
+    all_offs, pareto_offs = get_population_df(problem, res)
 
-    population["pareto_trained"] = train_pf(
-        population["pareto"], DatasetClass, train_pf_epochs
-    )
-    return population
+    trained_pf = train_pf(pareto_offs, DatasetClass, train_pf_epochs)
+
+    return NASResult(res, all_offs, pareto_offs, trained_pf)
 
 
 def run_simple_grid_search(DatasetClass: Dataset):
