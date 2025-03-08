@@ -58,7 +58,11 @@ class CNN(nn.Module):
         self.p = p
 
         # Inputs quantization
-        self.input_quantize_layer = QuantizeLayer(p.quantization_mode, p.input_bitwidth)
+        self.input_quantize_layer = (
+            QuantizeLayer(p.quantization_mode, p.input_bitwidth)
+            if p.input_bitwidth < 32
+            else nn.Identity()
+        )
 
         # Convolutional layers
         self.conv_layers = nn.ModuleList()
@@ -76,7 +80,7 @@ class CNN(nn.Module):
                 self._get_activation(p),
             ]
             if layer.add_pooling:
-                modules.append(nn.MaxPool2d(kernel_size=2, stride=2))
+                modules.append(nn.MaxPool2d(kernel_size=2))
 
             self.conv_layers.append(nn.Sequential(*modules))
 
@@ -121,6 +125,23 @@ class CNN(nn.Module):
         for layer in self.conv_layers:
             x = layer(x)
         return x
+
+    @torch.no_grad()
+    def inspect_conv_layers(self):
+        # Forward pass dummy input through convolutional layers
+        dummy_input = torch.zeros(
+            1, self.p.input_channels, self.p.input_dimensions, self.p.input_dimensions
+        )
+        x = dummy_input
+        for layer in self.conv_layers:
+            x = layer(x)
+            print(
+                f"Next layer shape: {x.shape}, which equates to {x.reshape(x.shape[0], -1).size(1)} inputs"
+            )
+
+        # Flatten the conv output
+        flattened = x.reshape(x.shape[0], -1)
+        print(f"FC input size is {flattened.size(1)}")
 
     @torch.no_grad()
     def _get_first_fc_layer_input_size(self):
