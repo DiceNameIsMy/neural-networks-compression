@@ -6,7 +6,12 @@ import torch.optim as optim
 from torch import nn
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quantization import ActivationFunc, BinaryActivation, QMode, QuantizeLayer
+from models.quantization import ActivationFunc, QMode, QuantizeLayer
+from src.models.ternary_activation import (
+    BinaryActivation,
+    TernaryActivation,
+    TernaryConv2d,
+)
 
 
 @dataclass
@@ -70,7 +75,7 @@ class CNN(nn.Module):
         in_channels = p.input_channels
         for layer in p.conv_layers:
             modules = [
-                nn.Conv2d(
+                TernaryConv2d(
                     in_channels,
                     layer.out_channels,
                     kernel_size=layer.kernel_size,
@@ -160,7 +165,9 @@ class CNN(nn.Module):
         if p.activation == ActivationFunc.RELU:
             return nn.ReLU(inplace=True)
         elif p.activation == ActivationFunc.BINARIZE:
-            return BinaryActivation(p.quantization_mode)
+            return BinaryActivation()
+        elif p.activation.value == ActivationFunc.TERNARIZE.value:
+            return TernaryActivation()
         else:
             raise Exception(f"Unknown activation function: {p.activation}")
 
@@ -239,7 +246,7 @@ def test_cnn_model(p: CNNParams, train_loader, test_loader, *, patience=3, verbo
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=p.learning_rate)
 
-    for epoch in range(p.epochs + 1):
+    for epoch in range(1, p.epochs + 1):
 
         loss = train_cnn_epoch(
             model, optimizer, criterion, train_loader, epoch, print_state=(verbose >= 2)

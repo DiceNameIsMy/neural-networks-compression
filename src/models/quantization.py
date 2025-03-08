@@ -14,6 +14,7 @@ class QMode(enum.Enum):
 class ActivationFunc(enum.Enum):
     RELU = "relu"
     BINARIZE = "binarize"
+    TERNARIZE = "ternarize"
 
 
 class Binarize(torch.autograd.function.InplaceFunction):

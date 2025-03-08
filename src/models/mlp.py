@@ -6,7 +6,8 @@ import torch.optim as optim
 from torch import nn
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quantization import ActivationFunc, BinaryActivation, QMode, QuantizeLayer
+from models.quantization import ActivationFunc, QMode, QuantizeLayer
+from src.models.ternary_activation import BinaryActivation, TernaryActivation
 
 
 @dataclass
@@ -76,7 +77,9 @@ class MLP(nn.Module):
         if p.activation.value == ActivationFunc.RELU.value:
             return nn.ReLU()
         elif p.activation.value == ActivationFunc.BINARIZE.value:
-            return BinaryActivation(p.quantization_mode)
+            return BinaryActivation()
+        elif p.activation.value == ActivationFunc.TERNARIZE.value:
+            return TernaryActivation()
         else:
             raise Exception(
                 f"Unknown activation function: {p.activation} of type {type(p.activation)}"
@@ -119,17 +122,16 @@ def test(model: MLP, criterion, test_loader, *, print_state=True):
 
     loss_sum = 0
     correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(DEVICE), target.to(DEVICE)
-            outputs = model(data)
-            batch_loss = criterion(outputs, target)
-            loss_sum += batch_loss
-            if print_state:
-                print("Test batch loss: " + str(batch_loss))
+    for data, target in test_loader:
+        data, target = data.to(DEVICE), target.to(DEVICE)
+        outputs = model(data)
+        batch_loss = criterion(outputs, target)
+        loss_sum += batch_loss
+        if print_state:
+            print("Test batch loss: " + str(batch_loss))
 
-            pred = outputs.argmax(dim=1)  # get the index of the max log-probability
-            correct += pred.eq(target.argmax(dim=1)).sum().item()
+        pred = outputs.argmax(dim=1)  # get the index of the max log-probability
+        correct += pred.eq(target.argmax(dim=1)).sum().item()
 
     amount_of_batches = len(test_loader)
     amount_of_datapoints = len(test_loader.dataset)
@@ -157,7 +159,7 @@ def test_model(p: ModelParams, train_loader, test_loader, *, patience=3, verbose
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=p.learning_rate)
 
-    for epoch in range(p.epochs + 1):
+    for epoch in range(1, p.epochs + 1):
 
         loss = train_epoch(
             model, optimizer, criterion, train_loader, epoch, print_state=(verbose >= 2)
