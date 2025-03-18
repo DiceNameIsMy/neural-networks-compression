@@ -2,8 +2,8 @@ import numpy as np
 from sklearn import preprocessing
 from ucimlrepo import fetch_ucirepo
 
+from constants import BATCH_SIZE
 from datasets.dataset import Dataset, cache_to_file
-from src.constants import BATCH_SIZE
 
 
 @cache_to_file(name="breast_cancer")

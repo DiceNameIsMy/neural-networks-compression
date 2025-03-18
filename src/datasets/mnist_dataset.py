@@ -3,7 +3,7 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils import data
 
-from src.constants import BATCH_SIZE
+from constants import BATCH_SIZE
 
 
 def fetch_mnist_dataset():
