@@ -29,6 +29,8 @@ def Delta(tensor: torch.Tensor):
         delta = 0.75 * torch.sum(tensor.abs(), dim=(1, 2, 3)) / n
     elif len(tensor.size()) == 2:  # fc layer
         delta = 0.75 * torch.sum(tensor.abs(), dim=(1,)) / n
+    else:
+        raise ValueError("Unknown tensor size")
     return delta
 
 

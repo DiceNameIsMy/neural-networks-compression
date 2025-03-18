@@ -6,8 +6,14 @@ import torch.optim as optim
 from torch import nn
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quantization import ActivationFunc, QMode, QuantizeLayer
-from src.models.ternary_activation import BinaryActivation, TernaryActivation
+from models.quantization import (
+    ActivationFunc,
+    BinarizeLayer_ReSTE,
+    BinaryActivation,
+    QMode,
+    QuantizeLayer,
+)
+from src.models.ternary_activation import TernaryActivation
 
 
 @dataclass
@@ -26,6 +32,7 @@ class ModelParams:
     # Training params
     dropout_rate: int = 0.0  # TODO: Parametrize?
     learning_rate: float = LEARNING_RATE
+
     epochs: int = EPOCHS
     quantization_mode: QMode = QMode.DET
 
@@ -77,7 +84,9 @@ class MLP(nn.Module):
         if p.activation.value == ActivationFunc.RELU.value:
             return nn.ReLU()
         elif p.activation.value == ActivationFunc.BINARIZE.value:
-            return BinaryActivation()
+            return BinaryActivation(p.quantization_mode)
+        elif p.activation.value == ActivationFunc.BINARIZE_RESTE.value:
+            return BinarizeLayer_ReSTE()
         elif p.activation.value == ActivationFunc.TERNARIZE.value:
             return TernaryActivation()
         else:
