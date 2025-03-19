@@ -16,7 +16,7 @@ from pymoo.termination import get_termination
 from constants import SEED
 from datasets.dataset import Dataset
 from models.mlp import ModelParams, evaluate_model
-from models.quant import ActivationFunc
+from models.quant.enums import ActivationModule
 from nas.mlp_nas_problem import NASParams, NASProblem, get_cost_approximation
 
 
@@ -118,7 +118,7 @@ def train_pf(pf, DatasetClass, epochs):
             hidden_bitwidth=conf["hidden_bitwidth"],
             model_layers=conf["layers_amount"],
             learning_rate=conf["learning_rate"],
-            activation=ActivationFunc.BINARIZE,
+            activation=ActivationModule.BINARIZE,
             epochs=epochs,
             quantization_mode=conf["quantization_mode"],
         )
@@ -212,7 +212,7 @@ def run_simple_grid_search(DatasetClass: Dataset):
                 hidden_bitwidth=8,
                 model_layers=layers,
                 learning_rate=0.01,
-                activation=ActivationFunc.BINARIZE,
+                activation=ActivationModule.BINARIZE,
                 epochs=20,
             )
             train_loader, test_loader = DatasetClass.get_dataloaders()

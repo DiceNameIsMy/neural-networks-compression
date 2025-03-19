@@ -1,6 +1,6 @@
 from datasets.vertebral_dataset import VertebralDataset
 from models.mlp import ModelParams, test_model
-from models.quant import ActivationFunc, QMode
+from models.quant.enums import ActivationModule, QMode
 
 p = ModelParams(
     in_layer_height=VertebralDataset.input_size,
@@ -10,7 +10,7 @@ p = ModelParams(
     hidden_bitwidth=32,
     model_layers=3,
     learning_rate=0.01,
-    activation=ActivationFunc.RELU,
+    activation=ActivationModule.RELU,
     epochs=15,
     dropout_rate=0.2,
     quantization_mode=QMode.DET,
