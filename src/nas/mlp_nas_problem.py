@@ -7,7 +7,7 @@ from constants import EPOCHS
 from datasets.dataset import Dataset
 from datasets.vertebral_dataset import VertebralDataset
 from models.mlp import ModelParams, evaluate_model
-from src.models.quant.enums import ActivationFunc, QMode
+from models.quant.enums import ActivationModule, QMode
 
 BITWIDTHS_MAPPING = (2, 3, 4, 5, 7, 10, 14, 32)
 LEARNING_RATES_MAPPING = (
@@ -209,7 +209,7 @@ class NASProblem(ElementwiseProblem):
             model_layers=conf["layers_amount"],
             quantization_mode=conf["quantization_mode"],
             learning_rate=conf["learning_rate"],
-            activation=ActivationFunc.BINARIZE,
+            activation=ActivationModule.BINARIZE,
             epochs=self.params.epochs,
         )
 

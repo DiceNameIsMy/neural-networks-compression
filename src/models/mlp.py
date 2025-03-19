@@ -6,8 +6,8 @@ import torch.optim as optim
 from torch import nn
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quant import binary, binary_ReSTE, ternarize
-from models.quant.enums import ActivationFunc, QMode
+from models.quant.common import get_activation_module
+from models.quant.enums import ActivationModule, QMode
 from models.quant.weight_quant import Module_Quantize
 
 
@@ -18,11 +18,11 @@ class ModelParams:
     in_bitwidth: int
     out_height: int
 
-    # MLP Artchitecture params
+    # MLP Architecture params
     hidden_height: int
     hidden_bitwidth: int
     model_layers: int
-    activation: ActivationFunc  # `binarize` or `relu`
+    activation: ActivationModule
 
     # Training params
     dropout_rate: int = 0.0  # TODO: Parametrize?
@@ -63,7 +63,9 @@ class MLP(nn.Module):
             if self.p.dropout_rate > 0:
                 layers.append(nn.Dropout(self.p.dropout_rate))
 
-            layers.append(self._get_activation_func(params))
+            layers.append(
+                get_activation_module(params.activation, params.quantization_mode)
+            )
 
         # Output layer
         layers.append(nn.Linear(layer_heights.pop(0), layer_heights[0]))
@@ -73,21 +75,6 @@ class MLP(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
-    @staticmethod
-    def _get_activation_func(p: ModelParams):
-        if p.activation.value == ActivationFunc.RELU.value:
-            return nn.ReLU()
-        elif p.activation.value == ActivationFunc.BINARIZE.value:
-            return binary.Module_Binarize(p.quantization_mode)
-        elif p.activation.value == ActivationFunc.BINARIZE_RESTE.value:
-            return binary_ReSTE.Module_Binarize_ReSTE()
-        elif p.activation.value == ActivationFunc.TERNARIZE.value:
-            return ternarize.Module_Ternarize()
-        else:
-            raise Exception(
-                f"Unknown activation function: {p.activation} of type {type(p.activation)}"
-            )
 
 
 def train_epoch(

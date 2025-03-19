@@ -6,7 +6,7 @@ class QMode(enum.Enum):
     STOCH = "stoch"
 
 
-class ActivationFunc(enum.Enum):
+class ActivationModule(enum.Enum):
     RELU = "relu"
     BINARIZE = "binary"
     BINARIZE_RESTE = "binary_ReSTE"

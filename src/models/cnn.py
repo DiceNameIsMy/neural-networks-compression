@@ -6,8 +6,9 @@ import torch.optim as optim
 from torch import nn
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quant.enums import ActivationFunc, QMode
-from models.quant.ternarize import Module_Binarize, Module_Ternarize, TernaryConv2d
+from models.quant.common import get_activation_module
+from models.quant.enums import ActivationModule, QMode
+from models.quant.ternarize import TernaryConv2d
 from models.quant.weight_quant import Module_Quantize
 
 
@@ -33,7 +34,7 @@ class CNNParams:
     fc_bitwidth: int
     conv_layers: list[CNNLayerParams]
 
-    activation: ActivationFunc = ActivationFunc.BINARIZE  # `binarize` or `relu`
+    activation: ActivationModule = ActivationModule.BINARIZE
 
     # Training params
     dropout_rate: int = 0.0
@@ -79,7 +80,7 @@ class CNN(nn.Module):
                     stride=layer.stride,
                 ),
                 nn.BatchNorm2d(layer.out_channels),
-                self._get_activation(p),
+                get_activation_module(p.activation, p.quantization_mode),
             ]
             if layer.add_pooling:
                 modules.append(nn.MaxPool2d(kernel_size=2))
@@ -97,7 +98,7 @@ class CNN(nn.Module):
             fc_layer = nn.Sequential(
                 Module_Quantize(self.p.quantization_mode, self.p.fc_bitwidth),
                 nn.Linear(prev_size, p.fc_height),
-                self._get_activation(p),
+                get_activation_module(p.activation, p.quantization_mode),
                 nn.Dropout(
                     p.dropout_rate
                 ),  # TODO: Exclude dropout if redundant (rate is 0.0)
@@ -156,17 +157,6 @@ class CNN(nn.Module):
         # Flatten the conv output
         flattened = x.reshape(x.shape[0], -1)
         return flattened.size(1)
-
-    @staticmethod
-    def _get_activation(p: CNNParams):
-        if p.activation == ActivationFunc.RELU:
-            return nn.ReLU(inplace=True)
-        elif p.activation == ActivationFunc.BINARIZE:
-            return Module_Binarize()
-        elif p.activation.value == ActivationFunc.TERNARIZE.value:
-            return Module_Ternarize()
-        else:
-            raise Exception(f"Unknown activation function: {p.activation}")
 
 
 @torch.no_grad()
