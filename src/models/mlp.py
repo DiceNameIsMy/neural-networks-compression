@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 
 import numpy as np
@@ -10,9 +11,11 @@ from models.quant.common import get_activation_module
 from models.quant.enums import ActivationModule, QMode
 from models.quant.weight_quant import Module_Quantize
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
-class ModelParams:
+class MLPParams:
     # Dataset specific params
     in_layer_height: int
     in_bitwidth: int
@@ -33,9 +36,9 @@ class ModelParams:
 
 
 class MLP(nn.Module):
-    p: ModelParams
+    p: MLPParams
 
-    def __init__(self, params: ModelParams):
+    def __init__(self, params: MLPParams):
         super(MLP, self).__init__()
         self.p = params
         if self.p.model_layers < 2:
@@ -77,109 +80,112 @@ class MLP(nn.Module):
         return self.model(x)
 
 
-def train_epoch(
-    model: MLP, optimizer, criterion, train_loader, epoch_no, *, print_state=True
-):
-    model.train()
+class MLPEvaluator:
+    train_loader: torch.utils.data.DataLoader
+    test_loader: torch.utils.data.DataLoader
+    early_stop_patience: int
 
-    loss_sum = 0
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(DEVICE), target.to(DEVICE)
+    def __init__(self, train_loader, test_loader, early_stop_patience=3):
+        self.train_loader = train_loader
+        self.test_loader = test_loader
+        self.early_stop_patience = early_stop_patience
 
-        # Forward pass
-        outputs = model(data)
-        loss = criterion(outputs, target)
-        loss_sum += loss.item()
+    def train_model(self, params: MLPParams) -> float:
+        model = MLP(params).to(DEVICE)
+        # best_model = copy.deepcopy(model)
 
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        min_loss = float("inf")
+        best_test_acc = 0
+        without_consecutive_improvements = 0
 
-        if print_state and batch_idx % 5 == 0:
-            trained_on = batch_idx * len(data)
-            print(
-                f"Train Epoch: {epoch_no} [{trained_on}/{len(train_loader.dataset)}] Loss: {loss.item():.4f}"
-            )
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
 
-    amount_of_batches = len(train_loader)
-    avg_loss = loss_sum / amount_of_batches
-    return avg_loss
+        for epoch in range(1, params.epochs + 1):
 
+            loss = self.train_epoch(model, optimizer, criterion, epoch)
 
-@torch.no_grad()
-def test(model: MLP, criterion, test_loader, *, print_state=True):
-    model.eval()
+            # Retain the best accuracy
+            test_acc = self.test_model(model, criterion)
+            if test_acc > best_test_acc:
+                best_test_acc = test_acc
 
-    loss_sum = 0
-    correct = 0
-    for data, target in test_loader:
-        data, target = data.to(DEVICE), target.to(DEVICE)
-        outputs = model(data)
-        batch_loss = criterion(outputs, target)
-        loss_sum += batch_loss
-        if print_state:
-            print("Test batch loss: " + str(batch_loss))
+            # Early stopping
+            if loss < min_loss:
+                min_loss = loss
+                without_consecutive_improvements = 0
+            else:
+                without_consecutive_improvements += 1
 
-        pred = outputs.argmax(dim=1)  # get the index of the max log-probability
-        correct += pred.eq(target.argmax(dim=1)).sum().item()
+            if without_consecutive_improvements >= self.early_stop_patience:
+                logger.debug(f"Early stopping triggered after {epoch + 1} epochs")
+                break
 
-    amount_of_batches = len(test_loader)
-    amount_of_datapoints = len(test_loader.dataset)
-    loss = loss_sum / amount_of_batches
+        return best_test_acc
 
-    accuracy = 100.0 * correct / amount_of_datapoints
-    if print_state:
-        print(
+    def train_epoch(self, model: MLP, optimizer, criterion, epoch_no) -> float:
+        model.train()
+
+        amount_of_batches = len(self.train_loader)
+        amount_of_datapoints = len(self.train_loader.dataset)
+
+        trained_on = 0
+        loss_sum = 0
+        for batch_idx, (data, target) in enumerate(self.train_loader):
+            data, target = data.to(DEVICE), target.to(DEVICE)
+
+            # Forward pass
+            outputs = model(data)
+            loss = criterion(outputs, target)
+            loss_sum += loss.item()
+
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            trained_on += self.test_loader.batch_size
+            if batch_idx % 5 == 0:
+                logger.debug(
+                    f"Train Epoch: {epoch_no} [{trained_on}/{amount_of_datapoints}] Loss: {loss.item():.4f}"
+                )
+
+        avg_loss = loss_sum / amount_of_batches
+        return avg_loss
+
+    @torch.no_grad()
+    def test_model(self, model: MLP, criterion) -> float:
+        model.eval()
+
+        loss_sum = 0
+        correct = 0
+        for data, target in self.test_loader:
+            data, target = data.to(DEVICE), target.to(DEVICE)
+            outputs = model(data)
+            batch_loss = criterion(outputs, target)
+            loss_sum += batch_loss
+
+            pred = outputs.argmax(dim=1)  # get the index of the max log-probability
+            correct += pred.eq(target.argmax(dim=1)).sum().item()
+
+        amount_of_batches = len(self.test_loader)
+        amount_of_datapoints = len(self.test_loader.dataset)
+        loss = loss_sum / amount_of_batches
+
+        accuracy = 100.0 * correct / amount_of_datapoints
+
+        logger.debug(
             "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n".format(
                 loss, correct, amount_of_datapoints, accuracy
             )
         )
 
-    return accuracy
+        return accuracy
 
 
-def test_model(p: ModelParams, train_loader, test_loader, *, patience=3, verbose=0):
-    model = MLP(p).to(DEVICE)
-    # best_model = copy.deepcopy(model)
-
-    min_loss = float("inf")
-    best_test_acc = 0
-    without_consecutive_improvements = 0
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=p.learning_rate)
-
-    for epoch in range(1, p.epochs + 1):
-
-        loss = train_epoch(
-            model, optimizer, criterion, train_loader, epoch, print_state=(verbose >= 2)
-        )
-
-        # Retain the best accuracy
-        test_acc = test(model, criterion, test_loader, print_state=(verbose >= 1))
-        if test_acc > best_test_acc:
-            best_test_acc = test_acc
-
-        # Early stopping
-        if loss < min_loss:
-            min_loss = loss
-            without_consecutive_improvements = 0
-        else:
-            without_consecutive_improvements += 1
-
-        if without_consecutive_improvements >= patience:
-            if verbose >= 1:
-                print(f"Early stopping triggered after {epoch + 1} epochs")
-            break
-
-    return best_test_acc
-
-
-def evaluate_model(p: ModelParams, train_loader, test_loader, *, times=1, verbose=0):
-    accuracies = [
-        test_model(p, train_loader, test_loader, verbose=verbose) for _ in range(times)
-    ]
+def evaluate_model(p: MLPParams, train_loader, test_loader, *, times=1, verbose=0):
+    evaluator = MLPEvaluator(train_loader, test_loader)
+    accuracies = [evaluator.train_model(p) for _ in range(times)]
     return {
         "max": max(accuracies),
         "mean": np.mean(accuracies),

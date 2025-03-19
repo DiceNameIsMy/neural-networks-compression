@@ -6,7 +6,7 @@ from pymoo.core.problem import ElementwiseProblem
 from constants import EPOCHS
 from datasets.dataset import Dataset
 from datasets.vertebral_dataset import VertebralDataset
-from models.mlp import ModelParams, evaluate_model
+from models.mlp import MLPParams, evaluate_model
 from models.quant.enums import ActivationModule, QMode
 
 BITWIDTHS_MAPPING = (2, 3, 4, 5, 7, 10, 14, 32)
@@ -200,7 +200,7 @@ class NASProblem(ElementwiseProblem):
         return (float(val) - bounds[0]) * 100 / (bounds[1] - bounds[0])
 
     def conf_to_model_params(self, conf):
-        return ModelParams(
+        return MLPParams(
             in_layer_height=self.dataset.input_size,
             in_bitwidth=conf["input_bitwidth"],
             out_height=self.dataset.output_size,

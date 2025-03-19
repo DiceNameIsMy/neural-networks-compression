@@ -15,7 +15,7 @@ from pymoo.termination import get_termination
 
 from constants import SEED
 from datasets.dataset import Dataset
-from models.mlp import ModelParams, evaluate_model
+from models.mlp import MLPParams, evaluate_model
 from models.quant.enums import ActivationModule
 from nas.mlp_nas_problem import NASParams, NASProblem, get_cost_approximation
 
@@ -110,7 +110,7 @@ def train_pf(pf, DatasetClass, epochs):
     train_loader, test_loader = DatasetClass.get_dataloaders()
 
     def _train_conf(conf):
-        params = ModelParams(
+        params = MLPParams(
             in_layer_height=DatasetClass.input_size,
             in_bitwidth=conf["input_bitwidth"],
             out_height=DatasetClass.output_size,
@@ -204,7 +204,7 @@ def run_simple_grid_search(DatasetClass: Dataset):
     no_NAS_datapoints = []
     for layers in range(2, 4 + 1):
         for layer_size in range(4, 17, 4):
-            p = ModelParams(
+            p = MLPParams(
                 in_layer_height=DatasetClass.input_size,
                 in_bitwidth=8,
                 out_height=DatasetClass.output_size,

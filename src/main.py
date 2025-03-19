@@ -1,8 +1,8 @@
 from datasets.vertebral_dataset import VertebralDataset
-from models.mlp import ModelParams, test_model
+from models.mlp import MLPParams, test_model
 from models.quant.enums import ActivationModule, QMode
 
-p = ModelParams(
+p = MLPParams(
     in_layer_height=VertebralDataset.input_size,
     in_bitwidth=32,
     out_height=VertebralDataset.output_size,
