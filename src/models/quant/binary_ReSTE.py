@@ -1,13 +1,8 @@
+# Taken & adapted from: https://github.com/DravenALG/ReSTE
+
 import math
 
 import torch
-
-
-def approximate_function(x, o):
-    if x >= 0:
-        return math.pow(x, 1 / o)
-    else:
-        return -math.pow(-x, 1 / o)
 
 
 class Binarize_ReSTE(torch.autograd.Function):
@@ -41,9 +36,17 @@ class Binarize_ReSTE(torch.autograd.Function):
         return grad_input, None, None
 
 
-class BinarizeLayer_ReSTE(torch.nn.Module):
+def approximate_function(x, o):
+    if x >= 0:
+        return math.pow(x, 1 / o)
+    else:
+        return -math.pow(-x, 1 / o)
+
+
+class Module_Binarize_ReSTE(torch.nn.Module):
     def __init__(self):
-        super(BinarizeLayer_ReSTE, self).__init__()
+        # TODO: Make t and o configurable
+        super(Module_Binarize_ReSTE, self).__init__()
         self.t = torch.tensor(1.5).float()
         self.o = torch.tensor(1).float()
 

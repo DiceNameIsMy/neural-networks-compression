@@ -6,14 +6,9 @@ import torch.optim as optim
 from torch import nn
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quantization import (
-    ActivationFunc,
-    BinarizeLayer_ReSTE,
-    BinaryActivation,
-    QMode,
-    QuantizeLayer,
-)
-from src.models.ternary_activation import TernaryActivation
+from models.quant import binary, binary_ReSTE, ternarize
+from models.quant.enums import ActivationFunc, QMode
+from models.quant.weight_quant import Module_Quantize
 
 
 @dataclass
@@ -56,14 +51,14 @@ class MLP(nn.Module):
         )
 
         if self.p.in_bitwidth < 32:
-            layers.append(QuantizeLayer(self.p.quantization_mode, self.p.in_bitwidth))
+            layers.append(Module_Quantize(self.p.quantization_mode, self.p.in_bitwidth))
 
         # Setup hidden layers
         for _ in range(2, self.p.model_layers):
             layers.append(nn.Linear(layer_heights.pop(0), layer_heights[0]))
             if self.p.hidden_bitwidth < 32:
                 layers.append(
-                    QuantizeLayer(self.p.quantization_mode, self.p.hidden_bitwidth)
+                    Module_Quantize(self.p.quantization_mode, self.p.hidden_bitwidth)
                 )
             if self.p.dropout_rate > 0:
                 layers.append(nn.Dropout(self.p.dropout_rate))
@@ -84,11 +79,11 @@ class MLP(nn.Module):
         if p.activation.value == ActivationFunc.RELU.value:
             return nn.ReLU()
         elif p.activation.value == ActivationFunc.BINARIZE.value:
-            return BinaryActivation(p.quantization_mode)
+            return binary.Module_Binarize(p.quantization_mode)
         elif p.activation.value == ActivationFunc.BINARIZE_RESTE.value:
-            return BinarizeLayer_ReSTE()
+            return binary_ReSTE.Module_Binarize_ReSTE()
         elif p.activation.value == ActivationFunc.TERNARIZE.value:
-            return TernaryActivation()
+            return ternarize.Module_Ternarize()
         else:
             raise Exception(
                 f"Unknown activation function: {p.activation} of type {type(p.activation)}"

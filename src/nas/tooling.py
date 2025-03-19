@@ -16,7 +16,7 @@ from pymoo.termination import get_termination
 from constants import SEED
 from datasets.dataset import Dataset
 from models.mlp import ModelParams, evaluate_model
-from models.quantization import ActivationFunc
+from models.quant import ActivationFunc
 from nas.mlp_nas_problem import NASParams, NASProblem, get_cost_approximation
 
 

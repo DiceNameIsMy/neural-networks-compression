@@ -1,7 +1,9 @@
+# Taken & adapted from: https://github.com/itayhubara/BinaryNet.pytorch
+
 import torch
 
 from constants import DEVICE
-from models.quantization.enums import QMode
+from models.quant.enums import QMode
 
 
 class Binarize(torch.autograd.function.InplaceFunction):
@@ -44,11 +46,11 @@ def binarize(input, quant_mode):
     return Binarize.apply(input, quant_mode)
 
 
-class BinaryActivation(torch.nn.Module):
+class Module_Binarize(torch.nn.Module):
     qmode: QMode
 
     def __init__(self, qmode: QMode):
-        super(BinaryActivation, self).__init__()
+        super(Module_Binarize, self).__init__()
         self.qmode = qmode
 
     def forward(self, x):

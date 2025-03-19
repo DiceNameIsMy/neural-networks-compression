@@ -1,6 +1,6 @@
 # Taken & adapted from: https://github.com/Thinklab-SJTU/twns
+
 import torch
-import torch.nn as nn
 
 
 def Alpha(tensor: torch.Tensor, delta):
@@ -57,16 +57,6 @@ def Ternarize(tensor: torch.Tensor):
         out = torch.add(pos_one, neg_one)
         output[i] = torch.add(output[i], torch.mul(out, alpha[i]))
     return output
-
-
-class TernaryActivation(torch.nn.Module):
-    def forward(self, x):
-        return Ternarize(x)
-
-
-class BinaryActivation(torch.nn.Module):
-    def forward(self, x):
-        return Binarize(x)
 
 
 class Conv2DFunctionQUAN(torch.autograd.Function):
@@ -160,7 +150,7 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
         )
 
 
-class TernaryConv2d(nn.Conv2d):
+class TernaryConv2d(torch.nn.Conv2d):
     def __init__(
         self,
         in_channels,
@@ -196,7 +186,7 @@ class TernaryConv2d(nn.Conv2d):
         )
 
 
-class BinaryConv2d(nn.Conv2d):
+class BinaryConv2d(torch.nn.Conv2d):
     def __init__(
         self,
         in_channels,
@@ -232,8 +222,11 @@ class BinaryConv2d(nn.Conv2d):
         )
 
 
-def save_model(model, acc, name_prefix="mnist"):
-    print("Saving model ...")
-    state = {"acc": acc, "state_dict": model.state_dict()}
-    torch.save(state, name_prefix + "-latest.pth")
-    print("*** DONE! ***")
+class Module_Binarize(torch.nn.Module):
+    def forward(self, x):
+        return Binarize(x)
+
+
+class Module_Ternarize(torch.nn.Module):
+    def forward(self, x):
+        return Ternarize(x)

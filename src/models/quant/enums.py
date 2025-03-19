@@ -8,6 +8,6 @@ class QMode(enum.Enum):
 
 class ActivationFunc(enum.Enum):
     RELU = "relu"
-    BINARIZE = "binarize"
-    BINARIZE_RESTE = "binarize_ReSTE"
-    TERNARIZE = "ternarize"
+    BINARIZE = "binary"
+    BINARIZE_RESTE = "binary_ReSTE"
+    TERNARIZE = "ternary"

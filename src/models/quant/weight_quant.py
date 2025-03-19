@@ -1,7 +1,9 @@
+# Taken & adapted from: https://github.com/itayhubara/BinaryNet.pytorch
+
 import torch
 
 from constants import DEVICE
-from models.quantization.enums import QMode
+from models.quant.enums import QMode
 
 
 class Quantize(torch.autograd.function.InplaceFunction):
@@ -36,12 +38,12 @@ def quantize(input, quant_mode, numBits):
     return Quantize.apply(input, quant_mode, numBits)
 
 
-class QuantizeLayer(torch.nn.Module):
+class Module_Quantize(torch.nn.Module):
     qmode: QMode
     num_bits: int
 
     def __init__(self, qmode: QMode, num_bits: int):
-        super(QuantizeLayer, self).__init__()
+        super(Module_Quantize, self).__init__()
         self.qmode = qmode
         self.num_bits = num_bits
 

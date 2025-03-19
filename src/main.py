@@ -1,6 +1,6 @@
 from datasets.vertebral_dataset import VertebralDataset
 from models.mlp import ModelParams, test_model
-from models.quantization import ActivationFunc, QMode
+from models.quant import ActivationFunc, QMode
 
 p = ModelParams(
     in_layer_height=VertebralDataset.input_size,

@@ -6,12 +6,9 @@ import torch.optim as optim
 from torch import nn
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quantization import ActivationFunc, QMode, QuantizeLayer
-from src.models.ternary_activation import (
-    BinaryActivation,
-    TernaryActivation,
-    TernaryConv2d,
-)
+from models.quant.enums import ActivationFunc, QMode
+from models.quant.ternarize import Module_Binarize, Module_Ternarize, TernaryConv2d
+from models.quant.weight_quant import Module_Quantize
 
 
 @dataclass
@@ -64,7 +61,7 @@ class CNN(nn.Module):
 
         # Inputs quantization
         self.input_quantize_layer = (
-            QuantizeLayer(p.quantization_mode, p.input_bitwidth)
+            Module_Quantize(p.quantization_mode, p.input_bitwidth)
             if p.input_bitwidth < 32
             else nn.Identity()
         )
@@ -98,7 +95,7 @@ class CNN(nn.Module):
         prev_size = first_fc_input_size
         for _ in range(p.fc_layers):
             fc_layer = nn.Sequential(
-                QuantizeLayer(self.p.quantization_mode, self.p.fc_bitwidth),
+                Module_Quantize(self.p.quantization_mode, self.p.fc_bitwidth),
                 nn.Linear(prev_size, p.fc_height),
                 self._get_activation(p),
                 nn.Dropout(
@@ -165,9 +162,9 @@ class CNN(nn.Module):
         if p.activation == ActivationFunc.RELU:
             return nn.ReLU(inplace=True)
         elif p.activation == ActivationFunc.BINARIZE:
-            return BinaryActivation()
+            return Module_Binarize()
         elif p.activation.value == ActivationFunc.TERNARIZE.value:
-            return TernaryActivation()
+            return Module_Ternarize()
         else:
             raise Exception(f"Unknown activation function: {p.activation}")
 
