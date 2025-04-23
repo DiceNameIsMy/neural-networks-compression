@@ -1,5 +1,7 @@
 # Project-specific
 datasets_cache/
+.vscode/
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
