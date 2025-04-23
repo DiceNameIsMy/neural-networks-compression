@@ -106,12 +106,16 @@ def get_population_df(problem: NASProblem, res: Result, plot=True):
     return (all_offs, pareto_front)
 
 
-def train_pf(pf, DatasetClass, epochs):
+def train_pareto_front(pf: pd.DataFrame, DatasetClass: type[Dataset], epochs: int):
+    """
+    Train pareto front of model architectures.
+    """
+
     train_loader, test_loader = DatasetClass.get_dataloaders()
 
     def _train_conf(conf):
         params = MLPParams(
-            in_layer_height=DatasetClass.input_size,
+            in_height=DatasetClass.input_size,
             in_bitwidth=conf["input_bitwidth"],
             out_height=DatasetClass.output_size,
             hidden_height=conf["hidden_height"],
@@ -158,12 +162,12 @@ class NASResult:
 def run_NAS_pipeline(
     DatasetClass: Dataset,
     params: NASParams,
+    *,
     n_gen=1,
     train_pf_epochs=10,
     population_cache_file: str | None = None,
 ) -> NASResult:
 
-    # Run NAS
     problem = NASProblem(DatasetClass, params)
 
     sampling = NASResult.load_population(population_cache_file)
@@ -190,11 +194,11 @@ def run_NAS_pipeline(
     problem.show_metadata()
 
     # Prepare df's for interpretation
-    all_offs, pareto_offs = get_population_df(problem, res)
+    all_offspring, pareto_front = get_population_df(problem, res)
 
-    trained_pf = train_pf(pareto_offs, DatasetClass, train_pf_epochs)
+    trained_pf = train_pareto_front(pareto_front, DatasetClass, train_pf_epochs)
 
-    return NASResult(res, all_offs, pareto_offs, trained_pf)
+    return NASResult(res, all_offspring, pareto_front, trained_pf)
 
 
 def run_simple_grid_search(DatasetClass: Dataset):
@@ -205,7 +209,7 @@ def run_simple_grid_search(DatasetClass: Dataset):
     for layers in range(2, 4 + 1):
         for layer_size in range(4, 17, 4):
             p = MLPParams(
-                in_layer_height=DatasetClass.input_size,
+                in_height=DatasetClass.input_size,
                 in_bitwidth=8,
                 out_height=DatasetClass.output_size,
                 hidden_height=layer_size,
@@ -219,7 +223,7 @@ def run_simple_grid_search(DatasetClass: Dataset):
 
             accuracy = evaluate_model(p, train_loader, test_loader, times=3)
             cost = get_cost_approximation(
-                p.in_layer_height,
+                p.in_height,
                 p.out_height,
                 p.model_layers,
                 p.hidden_height,

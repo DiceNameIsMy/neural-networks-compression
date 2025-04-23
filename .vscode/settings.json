@@ -4,5 +4,7 @@
     "editor.codeActionsOnSave": {
         "source.organizeImports": "always"
     },
-    "python.defaultInterpreterPath": "venv/bin/python"
+    "python.defaultInterpreterPath": "venv/bin/python",
+    "python.languageServer": "Pylance",
+    "python.analysis.languageServerMode": "full"
 }

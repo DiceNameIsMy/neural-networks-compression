@@ -201,7 +201,7 @@ class NASProblem(ElementwiseProblem):
 
     def conf_to_model_params(self, conf):
         return MLPParams(
-            in_layer_height=self.dataset.input_size,
+            in_height=self.dataset.input_size,
             in_bitwidth=conf["input_bitwidth"],
             out_height=self.dataset.output_size,
             hidden_height=conf["hidden_height"],

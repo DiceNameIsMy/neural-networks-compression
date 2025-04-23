@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch import nn
+from torch.utils.data import DataLoader
 
 from constants import DEVICE, EPOCHS, LEARNING_RATE
 from models.quant.common import get_activation_module
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MLPParams:
     # Dataset specific params
-    in_layer_height: int
+    in_height: int
     in_bitwidth: int
     out_height: int
 
@@ -47,8 +48,8 @@ class MLP(nn.Module):
         layers = []
 
         hidden_layers_count = max(0, self.p.model_layers - 2)
-        layer_heights = (
-            [self.p.in_layer_height]
+        layers_heights = (
+            [self.p.in_height]
             + [self.p.hidden_height] * hidden_layers_count
             + [self.p.out_height]
         )
@@ -56,22 +57,30 @@ class MLP(nn.Module):
         if self.p.in_bitwidth < 32:
             layers.append(Module_Quantize(self.p.quantization_mode, self.p.in_bitwidth))
 
-        # Setup hidden layers
-        for _ in range(2, self.p.model_layers):
-            layers.append(nn.Linear(layer_heights.pop(0), layer_heights[0]))
+        # Add hidden layers.
+        for _ in range(hidden_layers_count):
+
+            # Add fully connected layer
+            layers.append(nn.Linear(layers_heights.pop(0), layers_heights[0]))
+
+            # Add quantization
             if self.p.hidden_bitwidth < 32:
                 layers.append(
                     Module_Quantize(self.p.quantization_mode, self.p.hidden_bitwidth)
                 )
+
+            # Add dropout
             if self.p.dropout_rate > 0:
                 layers.append(nn.Dropout(self.p.dropout_rate))
 
+            # Add activation
             layers.append(
                 get_activation_module(params.activation, params.quantization_mode)
             )
 
-        # Output layer
-        layers.append(nn.Linear(layer_heights.pop(0), layer_heights[0]))
+        # Add output layer
+        layers.append(nn.Linear(layers_heights.pop(0), layers_heights[0]))
+        layers.append(nn.Softmax(dim=1))
 
         # Combine all layers into Sequential model
         self.model = nn.Sequential(*layers)
@@ -81,49 +90,60 @@ class MLP(nn.Module):
 
 
 class MLPEvaluator:
-    train_loader: torch.utils.data.DataLoader
-    test_loader: torch.utils.data.DataLoader
+    train_loader: DataLoader
+    test_loader: DataLoader
     early_stop_patience: int
 
-    def __init__(self, train_loader, test_loader, early_stop_patience=3):
+    min_loss = float("inf")
+    epochs_without_improvements = 0
+    train_log: list[dict[str, float]] = []
+
+    def __init__(
+        self, train_loader: DataLoader, test_loader: DataLoader, early_stop_patience=10
+    ):
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.early_stop_patience = early_stop_patience
 
     def train_model(self, params: MLPParams) -> float:
+        self.min_loss = float("inf")
+        self.epochs_without_improvements = 0
+        self.train_log = []
+
         model = MLP(params).to(DEVICE)
         # best_model = copy.deepcopy(model)
 
-        min_loss = float("inf")
-        best_test_acc = 0
-        without_consecutive_improvements = 0
+        best_accuracy = 0
 
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
 
         for epoch in range(1, params.epochs + 1):
-
             loss = self.train_epoch(model, optimizer, criterion, epoch)
+            accuracy = self.test_model(model, criterion)
+            self.train_log.append({"epoch": epoch, "loss": loss, "accuracy": accuracy})
 
-            # Retain the best accuracy
-            test_acc = self.test_model(model, criterion)
-            if test_acc > best_test_acc:
-                best_test_acc = test_acc
+            best_accuracy = max(best_accuracy, accuracy)
 
-            # Early stopping
-            if loss < min_loss:
-                min_loss = loss
-                without_consecutive_improvements = 0
-            else:
-                without_consecutive_improvements += 1
-
-            if without_consecutive_improvements >= self.early_stop_patience:
+            if self.should_stop_early(loss):
                 logger.debug(f"Early stopping triggered after {epoch + 1} epochs")
                 break
 
-        return best_test_acc
+        return best_accuracy
 
-    def train_epoch(self, model: MLP, optimizer, criterion, epoch_no) -> float:
+    def should_stop_early(self, loss: float) -> bool:
+        if loss < self.min_loss:
+            self.min_loss = loss
+            self.epochs_without_improvements = 0
+        else:
+            self.epochs_without_improvements += 1
+
+        should_stop_early = self.epochs_without_improvements >= self.early_stop_patience
+        return should_stop_early
+
+    def train_epoch(
+        self, model: MLP, optimizer: optim.Optimizer, criterion, epoch_no: int
+    ) -> float:
         model.train()
 
         amount_of_batches = len(self.train_loader)
@@ -147,7 +167,7 @@ class MLPEvaluator:
             trained_on += self.test_loader.batch_size
             if batch_idx % 5 == 0:
                 logger.debug(
-                    f"Train Epoch: {epoch_no} [{trained_on}/{amount_of_datapoints}] Loss: {loss.item():.4f}"
+                    f"Train Epoch: {epoch_no:>2} [{trained_on:>4}/{amount_of_datapoints}] Loss: {loss.item():.4f}"
                 )
 
         avg_loss = loss_sum / amount_of_batches
@@ -169,13 +189,13 @@ class MLPEvaluator:
             correct += pred.eq(target.argmax(dim=1)).sum().item()
 
         amount_of_batches = len(self.test_loader)
-        amount_of_datapoints = len(self.test_loader.dataset)
         loss = loss_sum / amount_of_batches
 
+        amount_of_datapoints = len(self.test_loader.dataset)
         accuracy = 100.0 * correct / amount_of_datapoints
 
         logger.debug(
-            "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n".format(
+            "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)".format(
                 loss, correct, amount_of_datapoints, accuracy
             )
         )
