@@ -62,6 +62,7 @@ class MLP(nn.Module):
 
             # Add fully connected layer
             layers.append(nn.Linear(layers_heights.pop(0), layers_heights[0]))
+            layers.append(nn.BatchNorm1d(layers_heights[0]))
 
             # Add quantization
             if self.p.hidden_bitwidth < 32:
