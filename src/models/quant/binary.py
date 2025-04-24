@@ -37,7 +37,7 @@ class Binarize(torch.autograd.function.InplaceFunction):
         return output
 
     def backward(ctx, grad_output):
-        # STE
+        # STE (Straight-Through Estimator)
         grad_input = grad_output
         return grad_input, None, None, None
 
