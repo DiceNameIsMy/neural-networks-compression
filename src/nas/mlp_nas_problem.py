@@ -1,241 +1,124 @@
-from dataclasses import dataclass
+import math
+from functools import lru_cache
 
-import numpy as np
 from pymoo.core.problem import ElementwiseProblem
 
-from constants import EPOCHS
-from datasets.dataset import Dataset
-from datasets.vertebral_dataset import VertebralDataset
-from models.mlp import MLPParams, evaluate_model
-from models.quant.enums import ActivationModule, QMode
-
-BITWIDTHS_MAPPING = (2, 3, 4, 5, 7, 10, 14, 32)
-LEARNING_RATES_MAPPING = (
-    0.0001,
-    0.0002,
-    0.0005,
-    0.001,
-    0.002,
-    0.005,
-    0.01,
-    0.02,
-    0.05,
-    0.1,
-    0.2,
-)
+from src.datasets.dataset import Dataset
+from src.models.mlp import MLPParams, evaluate_model
+from src.models.quant.enums import ActivationModule
+from src.nas.mlp_chromosome import Chromosome, RawChromosome
+from src.nas.nas import MlpNasParams
 
 
-@dataclass
-class NASParams:
-    hidden_height_bounds: tuple = (4, 16)
-    input_bitwidth_bounds: tuple = (0, len(BITWIDTHS_MAPPING) - 1)
-    hidden_bitwidth_bounds: tuple = (0, len(BITWIDTHS_MAPPING) - 1)
-    layers_amount_bounds: tuple = (2, 8)
-    learning_rate_bounds: tuple = (0, len(LEARNING_RATES_MAPPING) - 1)
-    quantization_mode_bounds: tuple = (0, 1)
+class MlpNasProblem(ElementwiseProblem):
+    # TODO: I'm not getting many diverse solutions because
+    #       I only have 2 objectives -> there isn't space for
+    #       many distinct solutions. It that okay?
 
-    epochs: int = EPOCHS
-    min_accuracy: float = 50.0
-
-    amount_of_evaluations: int = 1
-    population_size: int = 30
-    population_offspring_count: int = 10
-
-    def get_n_var(self):
-        return 6
-
-    def get_xl(self):
-        return np.array(np.stack(self._as_array(), 1)[0])
-
-    def get_xu(self):
-        return np.array(np.stack(self._as_array(), 1)[1])
-
-    def _as_array(self):
-        return np.array(
-            [
-                self.layers_amount_bounds,
-                self.hidden_height_bounds,
-                self.input_bitwidth_bounds,
-                self.hidden_bitwidth_bounds,
-                self.learning_rate_bounds,
-                self.quantization_mode_bounds,
-            ]
-        )
-
-
-def get_mult_approximation(
-    input_size, output_size, layers_amount, hidden_height
-) -> tuple[int, int, int]:
-    hidden_layers = max(layers_amount - 2, 0)
-
-    if hidden_layers == 0:
-        return input_size * output_size, 0, 0
-
-    elif hidden_layers == 1:
-        return input_size * hidden_height, 0, hidden_height * output_size
-
-    else:
-        hidden_layers_mul = hidden_height * hidden_height * (hidden_layers - 1)
-        return (
-            input_size * hidden_height,
-            hidden_layers_mul,
-            hidden_height * output_size,
-        )
-
-
-def get_cost_approximation(
-    input_size,
-    output_size,
-    layers_amount,
-    hidden_height,
-    input_bitwidth,
-    hidden_bitwidth,
-):
-    first_second, hidden_hidden, before_last_last = get_mult_approximation(
-        input_size, output_size, layers_amount, hidden_height
-    )
-
-    return (
-        (input_bitwidth * first_second)
-        + (hidden_hidden * hidden_bitwidth)
-        + (before_last_last * hidden_bitwidth)
-    )
-
-
-class NASProblem(ElementwiseProblem):
-    params: NASParams
+    p: MlpNasParams
     dataset: Dataset
     train_loader = None
     test_loader = None
 
-    best_accuracy = 0
+    def __init__(self, params: MlpNasParams, dataset: Dataset):
+        x_low, x_high = RawChromosome.get_bounds()
+        super().__init__(
+            n_var=RawChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
+        )  # A workaround for the rounding problem
 
-    def __init__(self, dataset, params: NASParams):
-        self.params = params
+        self.p = params
         self.dataset = dataset
         self.train_loader, self.test_loader = self.dataset.get_dataloaders()
 
-        super().__init__(
-            n_var=params.get_n_var(),
-            n_obj=5,
-            n_ieq_constr=1,
-            xl=params.get_xl(),
-            xu=params.get_xu(),
-            vtype=int,
-        )
-
     def _evaluate(self, x, out, *args, **kwargs):
-        conf = self._expand_x(x)
-
-        model_params = self.conf_to_model_params(conf)
-        model_perf = evaluate_model(
-            model_params,
+        ch = RawChromosome(x).parse()
+        params = self.get_nn_params(ch)
+        perf = evaluate_model(
+            params,
             self.train_loader,
             self.test_loader,
-            times=self.params.amount_of_evaluations,
+            times=self.p.amount_of_evaluations,
+            patience=self.p.patience,
         )
-        accuracy = model_perf["mean"]
+        accuracy = perf["mean"]
 
-        self.best_accuracy = max(self.best_accuracy, accuracy)
+        f1 = -(self.normalize(accuracy, 0, 100))  # Maximize accuracy
 
-        # TODO: We could choose a better metric than just mean accuracy.
-        # For example compute whether model A is statistically better than model B.
-        # NSGA-2 uses a tournament selection, where this metric can be used.
+        complexity = self.compute_nn_complexity(params)
+        f2 = self.normalize(
+            complexity, self._get_min_complexity(), self._get_max_complexity()
+        )  # Minimize NN complexity
 
-        # Objectives are optimized to get closer to zero
-        # Objective: Higher model accuracy
-        f1 = 100 - accuracy
+        out["F"] = [f1, f2]
 
-        # Objective: Less hidden layers
-        f2 = self.val_to_f(conf["layers_amount"], self.params.layers_amount_bounds)
-
-        # Objective: Less perceptrons per layer
-        f3 = self.val_to_f(conf["hidden_height"], self.params.hidden_height_bounds)
-
-        # Objective: Higher hidden layer quantization
-        f4 = self.val_to_f(
-            conf["hidden_bitwidth"], (min(BITWIDTHS_MAPPING), max(BITWIDTHS_MAPPING))
-        )
-
-        # Objective: Higher inputs quantization
-        f5 = self.val_to_f(
-            conf["input_bitwidth"], (min(BITWIDTHS_MAPPING), max(BITWIDTHS_MAPPING))
-        )
-        out["F"] = [f1, f2, f3, f4, f5]
-
-        # Constraints are optimized to be less than zero
-        # Constraint: Accuracy must be higher than .min_accuracy
-        g1 = -(accuracy - self.params.min_accuracy)
-        out["G"] = [g1]
-
-    def _expand_x(self, x):
-        return {
-            "layers_amount": x[0].astype(int),
-            "hidden_height": x[1].astype(int),
-            "input_bitwidth": BITWIDTHS_MAPPING[x[2].astype(int)],
-            "hidden_bitwidth": BITWIDTHS_MAPPING[x[3].astype(int)],
-            "learning_rate": LEARNING_RATES_MAPPING[x[4].astype(int)],
-            "quantization_mode": QMode.DET if x[5].astype(int) == 0 else QMode.STOCH,
-        }
-
-    def _expand_X(self, X: np.ndarray):
-        return {
-            "layers_amount": X[:, 0].astype(int),
-            "hidden_height": X[:, 1].astype(int),
-            "input_bitwidth": np.array(
-                [BITWIDTHS_MAPPING[x] for x in X[:, 2].astype(int)]
-            ),
-            "hidden_bitwidth": np.array(
-                [BITWIDTHS_MAPPING[x] for x in X[:, 3].astype(int)]
-            ),
-            "learning_rate": np.array(
-                [LEARNING_RATES_MAPPING[x] for x in X[:, 4].astype(int)]
-            ),
-            "quantization_mode": np.where(
-                X[:, 5].astype(int) == 1, QMode.DET, QMode.STOCH
-            ),
-        }
-
-    def val_to_f(self, val, bounds):
-        return (float(val) - bounds[0]) * 100 / (bounds[1] - bounds[0])
-
-    def conf_to_model_params(self, conf):
+    def get_nn_params(self, ch: Chromosome) -> MLPParams:
         return MLPParams(
             in_height=self.dataset.input_size,
-            in_bitwidth=conf["input_bitwidth"],
+            in_bitwidth=ch.in_bitwidth,
             out_height=self.dataset.output_size,
-            hidden_height=conf["hidden_height"],
-            hidden_bitwidth=conf["hidden_bitwidth"],
-            model_layers=conf["layers_amount"],
-            quantization_mode=conf["quantization_mode"],
-            learning_rate=conf["learning_rate"],
-            activation=ActivationModule.BINARIZE,
-            epochs=self.params.epochs,
+            hidden_height=ch.hidden_height,
+            hidden_bitwidth=ch.hidden_bitwidth,
+            model_layers=2 + ch.hidden_layers,
+            learning_rate=ch.learning_rate,
+            weight_decay=ch.weight_decay,
+            activation=ch.activation,
+            epochs=self.p.epochs,
+            dropout_rate=ch.dropout,
+            quantization_mode=ch.quatization_mode,
         )
 
-    def show_metadata(self):
-        print(f"Best accuracy: {self.best_accuracy}")
+    def compute_nn_complexity(self, p: MLPParams) -> float:
+        has_hidden_layers = p.model_layers > 2
 
+        layer1_ops = 0
+        other_ops = 0
+        if has_hidden_layers:
+            layer1_ops += p.in_height * p.hidden_height
+            other_ops += p.hidden_height * p.hidden_height * (p.model_layers - 2)
+            other_ops += p.hidden_height * p.out_height
+        else:
+            layer1_ops += p.in_height * p.hidden_height
+            other_ops += p.hidden_height * p.out_height
 
-def test_objectives():
-    nas_params = NASParams()
-    p = NASProblem(VertebralDataset, nas_params)
-    print(p.conf_to_model_params(p._expand_x(nas_params.get_xl())))
-    print(p.conf_to_model_params(p._expand_x(nas_params.get_xu())))
+        complexity = 0
+        complexity += layer1_ops * (math.log2(max(2, p.in_bitwidth)) * 3)
+        complexity += other_ops * (math.log2(max(2, p.hidden_bitwidth)) * 3)
 
-    min_out = dict()
-    p_min = nas_params.get_xl()
-    print(p_min)
-    p._evaluate(p_min, min_out)
-    print("Objective values on min bounds: ", min_out["F"])
-    print("NAS params for min bounds: ", p._expand_x(p_min))
+        activation_coef = 3 if p.activation == ActivationModule.RELU else 1.2
+        complexity *= activation_coef
 
-    max_out = dict()
-    p_max = nas_params.get_xu()
-    print(p_max)
-    p._evaluate(p_max, max_out)
-    print("Objective values on max bounds: ", max_out["F"])
-    print("NAS params for max bounds: ", p._expand_x(p_max))
+        return complexity
 
+    @lru_cache(maxsize=1)
+    def _get_min_complexity(self) -> float:
+        x = RawChromosome.get_bounds()[0]
+        ch = RawChromosome(x).parse()
+        params = self.get_nn_params(ch)
+        complexity = self.compute_nn_complexity(params)
+        return complexity
 
-test_objectives()
+    @lru_cache(maxsize=1)
+    def _get_max_complexity(self) -> float:
+        x = RawChromosome.get_bounds()[1]
+        ch = RawChromosome(x).parse()
+        params = self.get_nn_params(ch)
+        complexity = self.compute_nn_complexity(params)
+        return complexity
+
+    @staticmethod
+    def normalize(x: float, min: float, max: float) -> float:
+        if x < min:
+            return 0.0
+        elif x > max:
+            return 1.0
+        else:
+            return (x - min) / (max - min)
+
+    @staticmethod
+    def denormalize(x: float, min: float, max: float) -> float:
+        if x < 0.0:
+            return min
+        elif x > 1.0:
+            return max
+        else:
+            return x * (max - min) + min

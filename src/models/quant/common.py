@@ -1,7 +1,7 @@
 from torch import nn
 
-from models.quant import binary, binary_ReSTE, ternarize
-from models.quant.enums import ActivationModule, QMode
+from src.models.quant import binary, binary_ReSTE, ternarize
+from src.models.quant.enums import ActivationModule, QMode
 
 
 def get_activation_module(activation: ActivationModule, qmode: QMode):

@@ -10,10 +10,9 @@ logging.basicConfig(
 
 
 def main():
-    from datasets.cardio_dataset import CardioDataset
-    from datasets.vertebral_dataset import VertebralDataset
-    from models.mlp import MLPEvaluator, MLPParams
-    from models.quant.enums import ActivationModule, QMode
+    from src.datasets.cardio_dataset import CardioDataset
+    from src.models.mlp import MLPEvaluator, MLPParams
+    from src.models.quant.enums import ActivationModule, QMode
 
     p = MLPParams(
         in_height=CardioDataset.input_size,

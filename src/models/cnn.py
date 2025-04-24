@@ -5,11 +5,11 @@ import torch
 import torch.optim as optim
 from torch import nn
 
-from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quant.common import get_activation_module
-from models.quant.enums import ActivationModule, QMode
-from models.quant.ternarize import TernaryConv2d
-from models.quant.weight_quant import Module_Quantize
+from src.constants import DEVICE, EPOCHS, LEARNING_RATE
+from src.models.quant.common import get_activation_module
+from src.models.quant.enums import ActivationModule, QMode
+from src.models.quant.ternarize import TernaryConv2d
+from src.models.quant.weight_quant import Module_Quantize
 
 
 @dataclass
@@ -23,10 +23,10 @@ class CNNLayerParams:
 @dataclass
 class CNNParams:
     # Dataset specific params
-    input_channels: int
-    input_dimensions: int
-    input_bitwidth: int
-    output_height: int
+    in_channels: int
+    in_dimensions: int
+    in_bitwidth: int
+    out_height: int
 
     # NN Architecture params
     fc_height: int
@@ -43,8 +43,8 @@ class CNNParams:
     quantization_mode: QMode = QMode.DET
 
     def __post_init__(self):
-        assert 0 < self.input_channels
-        assert 0 < self.input_bitwidth
+        assert 0 < self.in_channels
+        assert 0 < self.in_bitwidth
 
         assert len(self.conv_layers) >= 1, "CNN must have at least 1 convolution layer"
 
@@ -62,15 +62,15 @@ class CNN(nn.Module):
 
         # Inputs quantization
         self.input_quantize_layer = (
-            Module_Quantize(p.quantization_mode, p.input_bitwidth)
-            if p.input_bitwidth < 32
+            Module_Quantize(p.quantization_mode, p.in_bitwidth)
+            if p.in_bitwidth < 32
             else nn.Identity()
         )
 
         # Convolutional layers
         self.conv_layers = nn.ModuleList()
 
-        in_channels = p.input_channels
+        in_channels = p.in_channels
         for layer in p.conv_layers:
             modules = [
                 TernaryConv2d(
@@ -107,7 +107,7 @@ class CNN(nn.Module):
             prev_size = p.fc_height
 
         # Final classification layer
-        self.classifier = nn.Linear(prev_size, p.output_height)
+        self.classifier = nn.Linear(prev_size, p.out_height)
 
     def forward(self, x):
         x = self.input_quantize_layer(x)
@@ -133,7 +133,7 @@ class CNN(nn.Module):
     def inspect_conv_layers(self):
         # Forward pass dummy input through convolutional layers
         dummy_input = torch.zeros(
-            1, self.p.input_channels, self.p.input_dimensions, self.p.input_dimensions
+            1, self.p.in_channels, self.p.in_dimensions, self.p.in_dimensions
         )
         x = dummy_input
         for layer in self.conv_layers:
@@ -150,7 +150,7 @@ class CNN(nn.Module):
     def _get_first_fc_layer_input_size(self):
         # Forward pass dummy input through convolutional layers
         dummy_input = torch.zeros(
-            1, self.p.input_channels, self.p.input_dimensions, self.p.input_dimensions
+            1, self.p.in_channels, self.p.in_dimensions, self.p.in_dimensions
         )
         x = self._forward_conv_layers(dummy_input)
 

@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn import preprocessing
 from ucimlrepo import fetch_ucirepo
 
-from datasets.dataset import Dataset, cache_to_file
+from src.datasets.dataset import Dataset, cache_to_file
 
 
 @cache_to_file(name="cardio")

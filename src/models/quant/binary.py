@@ -2,8 +2,8 @@
 
 import torch
 
-from constants import DEVICE
-from models.quant.enums import QMode
+from src.constants import DEVICE
+from src.models.quant.enums import QMode
 
 
 class Binarize(torch.autograd.function.InplaceFunction):

@@ -7,30 +7,31 @@ import torch.optim as optim
 from torch import nn
 from torch.utils.data import DataLoader
 
-from constants import DEVICE, EPOCHS, LEARNING_RATE
-from models.quant.common import get_activation_module
-from models.quant.enums import ActivationModule, QMode
-from models.quant.weight_quant import Module_Quantize
+from src.constants import DEVICE, EPOCHS, LEARNING_RATE
+from src.models.quant.common import get_activation_module
+from src.models.quant.enums import ActivationModule, QMode
+from src.models.quant.weight_quant import Module_Quantize
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class MLPParams:
-    # Dataset specific params
-    in_height: int
-    in_bitwidth: int
-    out_height: int
-
     # MLP Architecture params
+    in_height: int
     hidden_height: int
-    hidden_bitwidth: int
+    out_height: int
     model_layers: int
+
+    # Quantization params
+    in_bitwidth: int
+    hidden_bitwidth: int
     activation: ActivationModule
 
     # Training params
     dropout_rate: int = 0.0  # TODO: Parametrize?
     learning_rate: float = LEARNING_RATE
+    weight_decay: float = 0.0  # TODO: Parametrize?
 
     epochs: int = EPOCHS
     quantization_mode: QMode = QMode.DET
@@ -117,7 +118,11 @@ class MLPEvaluator:
         best_accuracy = 0
 
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
+        optimizer = optim.Adam(
+            model.parameters(),
+            lr=params.learning_rate,
+            weight_decay=params.weight_decay,
+        )
 
         for epoch in range(1, params.epochs + 1):
             loss = self.train_epoch(model, optimizer, criterion, epoch)
@@ -204,8 +209,10 @@ class MLPEvaluator:
         return accuracy
 
 
-def evaluate_model(p: MLPParams, train_loader, test_loader, *, times=1, verbose=0):
-    evaluator = MLPEvaluator(train_loader, test_loader)
+def evaluate_model(
+    p: MLPParams, train_loader, test_loader, *, times=1, patience=10, verbose=0
+):
+    evaluator = MLPEvaluator(train_loader, test_loader, early_stop_patience=patience)
     accuracies = [evaluator.train_model(p) for _ in range(times)]
     return {
         "max": max(accuracies),

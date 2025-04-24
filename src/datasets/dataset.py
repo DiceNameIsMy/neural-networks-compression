@@ -1,3 +1,4 @@
+import logging
 import os
 import pickle
 from functools import wraps
@@ -6,7 +7,9 @@ import torch
 from sklearn.model_selection import train_test_split
 from torch.utils import data
 
-from constants import BATCH_SIZE, SEED, VALIDATION_SPLIT
+from src.constants import BATCH_SIZE, CACHE_FOLDER, SEED, VALIDATION_SPLIT
+
+logger = logging.getLogger(__name__)
 
 
 class Dataset(data.Dataset):
@@ -45,19 +48,21 @@ class Dataset(data.Dataset):
         raise NotImplementedError("get_dataloaders is not implemented")
 
 
-def cache_to_file(name: str, cache_dir="datasets_cache"):
+def cache_to_file(name: str, cache_dir=CACHE_FOLDER):
     def decorator(func):
 
         @wraps(func)
         def wrapper(*args, **kwargs):
-            cache_file = os.path.join(cache_dir, f"{name}_cache.pkl")
 
             # Create cache directory if it does not exist
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
 
+            cache_file = os.path.join(cache_dir, f"{name}_cache.pkl")
+
             # Load from cache if exists
             if os.path.exists(cache_file):
+                logger.info(f"Loading cached {name} from {cache_file}")
                 with open(cache_file, "rb") as f:
                     return pickle.load(f)
 
@@ -65,6 +70,7 @@ def cache_to_file(name: str, cache_dir="datasets_cache"):
 
             # Save to cache
             with open(cache_file, "wb") as f:
+                logger.info(f"Caching {name} to {cache_file}")
                 pickle.dump(result, f)
 
             return result
