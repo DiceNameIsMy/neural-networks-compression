@@ -46,7 +46,7 @@ class MlpNasProblem(ElementwiseProblem):
 
         complexity = self.compute_nn_complexity(params)
         f2 = self.normalize(
-            complexity, self._get_min_complexity(), self._get_max_complexity()
+            complexity, self.get_min_complexity(), self.get_max_complexity()
         )  # Minimize NN complexity
 
         out["F"] = [f1, f2]
@@ -58,7 +58,7 @@ class MlpNasProblem(ElementwiseProblem):
             out_height=self.dataset.output_size,
             hidden_height=ch.hidden_height,
             hidden_bitwidth=ch.hidden_bitwidth,
-            model_layers=2 + ch.hidden_layers,
+            hidden_layers=ch.hidden_layers,
             learning_rate=ch.learning_rate,
             weight_decay=ch.weight_decay,
             activation=ch.activation,
@@ -68,17 +68,19 @@ class MlpNasProblem(ElementwiseProblem):
         )
 
     def compute_nn_complexity(self, p: MLPParams) -> float:
-        has_hidden_layers = p.model_layers > 2
+        has_hidden_layers = p.hidden_layers > 0
 
         layer1_ops = 0
         other_ops = 0
         if has_hidden_layers:
             layer1_ops += p.in_height * p.hidden_height
-            other_ops += p.hidden_height * p.hidden_height * (p.model_layers - 2)
-            other_ops += p.hidden_height * p.out_height
+
+            other_ops += (
+                p.hidden_height * p.hidden_height * p.hidden_layers
+            )  # Hidden layers
+            other_ops += p.hidden_height * p.out_height  # Output layer
         else:
-            layer1_ops += p.in_height * p.hidden_height
-            other_ops += p.hidden_height * p.out_height
+            layer1_ops += p.in_height * p.out_height
 
         complexity = 0
         complexity += layer1_ops * (math.log2(max(2, p.in_bitwidth)) * 3)
@@ -90,7 +92,7 @@ class MlpNasProblem(ElementwiseProblem):
         return complexity
 
     @lru_cache(maxsize=1)
-    def _get_min_complexity(self) -> float:
+    def get_min_complexity(self) -> float:
         x = RawChromosome.get_bounds()[0]
         ch = RawChromosome(x).parse()
         params = self.get_nn_params(ch)
@@ -98,7 +100,7 @@ class MlpNasProblem(ElementwiseProblem):
         return complexity
 
     @lru_cache(maxsize=1)
-    def _get_max_complexity(self) -> float:
+    def get_max_complexity(self) -> float:
         x = RawChromosome.get_bounds()[1]
         ch = RawChromosome(x).parse()
         params = self.get_nn_params(ch)

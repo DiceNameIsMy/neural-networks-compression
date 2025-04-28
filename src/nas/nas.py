@@ -37,7 +37,6 @@ class FloorRepair(Repair):
 class MlpNasParams:
     epochs: int = EPOCHS
     patience: int = 5
-
     amount_of_evaluations: int = 1
 
     population_size: int = 30

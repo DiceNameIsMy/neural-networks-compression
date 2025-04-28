@@ -21,7 +21,8 @@ class MLPParams:
     in_height: int
     hidden_height: int
     out_height: int
-    model_layers: int
+
+    hidden_layers: int
 
     # Quantization params
     in_bitwidth: int
@@ -43,15 +44,14 @@ class MLP(nn.Module):
     def __init__(self, params: MLPParams):
         super(MLP, self).__init__()
         self.p = params
-        if self.p.model_layers < 2:
-            raise Exception("Model must have at least 2 layers")
+        if self.p.hidden_layers < 0:
+            raise Exception("Model can't have negative amount of hidden layers")
 
         layers = []
 
-        hidden_layers_count = max(0, self.p.model_layers - 2)
         layers_heights = (
             [self.p.in_height]
-            + [self.p.hidden_height] * hidden_layers_count
+            + [self.p.hidden_height] * self.p.hidden_layers
             + [self.p.out_height]
         )
 
@@ -59,7 +59,7 @@ class MLP(nn.Module):
             layers.append(Module_Quantize(self.p.quantization_mode, self.p.in_bitwidth))
 
         # Add hidden layers.
-        for _ in range(hidden_layers_count):
+        for _ in range(self.p.hidden_layers):
 
             # Add fully connected layer
             layers.append(nn.Linear(layers_heights.pop(0), layers_heights[0]))

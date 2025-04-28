@@ -20,7 +20,7 @@ def main():
         out_height=CardioDataset.output_size,
         hidden_height=16,
         hidden_bitwidth=32,
-        model_layers=4,
+        hidden_layers=2,
         learning_rate=0.01,
         activation=ActivationModule.RELU,
         epochs=100,
