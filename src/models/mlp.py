@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 class MLPParams:
     # MLP Architecture params
     in_height: int
-    hidden_height: int
     out_height: int
 
     hidden_layers: int
+    hidden_layers_heights: tuple[int]
     hidden_layers_bitwidths: tuple[int]
 
     # Quantization params
@@ -54,6 +54,12 @@ class MLP(nn.Module):
                 + f"Expected {self.p.hidden_layers} but got {len(self.p.hidden_layers_bitwidths)}"
             )
 
+        if self.p.hidden_layers > len(self.p.hidden_layers_heights):
+            raise Exception(
+                "Not enough height information for hidden layers. "
+                + f"Expected {self.p.hidden_layers} but got {len(self.p.hidden_layers_heights)}"
+            )
+
         layers = []
 
         if self.p.in_bitwidth < 32:
@@ -62,7 +68,7 @@ class MLP(nn.Module):
         # Add hidden layers.
         quant_levels = list(self.p.hidden_layers_bitwidths)
         layers_heights = [self.p.in_height] + [
-            self.p.hidden_height for _ in range(self.p.hidden_layers)
+            self.p.hidden_layers_heights[i] for i in range(self.p.hidden_layers)
         ]
         for i in range(self.p.hidden_layers):
             perceptrons_in = layers_heights[i]

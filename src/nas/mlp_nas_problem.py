@@ -70,8 +70,12 @@ class MlpNasProblem(ElementwiseProblem):
             in_height=self.dataset.input_size,
             in_bitwidth=ch.in_bitwidth,
             out_height=self.dataset.output_size,
-            hidden_height=ch.hidden_height,
             hidden_layers=ch.hidden_layers,
+            hidden_layers_heights=[
+                ch.hidden_height1,
+                ch.hidden_height2,
+                ch.hidden_height3,
+            ],
             hidden_layers_bitwidths=[
                 ch.hidden_bitwidth1,
                 ch.hidden_bitwidth2,
@@ -90,15 +94,16 @@ class MlpNasProblem(ElementwiseProblem):
 
         # Compute input layer complexity
         if p.hidden_layers > 0:
-            layer_in_mults = p.in_height * p.hidden_height
+            layer_in_mults = p.in_height * p.hidden_layers_heights[0]
         else:
             layer_in_mults = p.in_height * p.out_height
 
         complexity += layer_in_mults * (math.log2(max(2, p.in_bitwidth)) * 3)
 
         # Compute hidden layers complexity
+        heights = list(p.hidden_layers_heights) + [p.out_height]
         for i in range(p.hidden_layers):
-            mults = p.hidden_height**2
+            mults = heights[i] * heights[i + 1]
             bitwidth = p.hidden_layers_bitwidths[i]
             complexity += mults * (math.log2(max(2, bitwidth)) * 3)
 

@@ -75,10 +75,12 @@ class MlpNasParams:
     def load_population(filename: str | None):
         if filename is None:
             return None
-        if not os.path.exists(POPULATION_FOLDER):
+
+        path = os.path.join(POPULATION_FOLDER, filename)
+        if not os.path.exists(path):
             return None
 
-        return pd.read_csv(os.path.join(POPULATION_FOLDER, filename)).values
+        return pd.read_csv(path).values
 
     @staticmethod
     def store_population(res: Result, filename: str):

@@ -9,10 +9,12 @@ from src.models.quant.enums import ActivationModule, QMode
 class Chromosome:
     in_bitwidth: int
 
-    hidden_height: int
     hidden_layers: int
+    hidden_height1: int
     hidden_bitwidth1: int
+    hidden_height2: int
     hidden_bitwidth2: int
+    hidden_height3: int
     hidden_bitwidth3: int
 
     dropout: float
@@ -51,10 +53,12 @@ class RawChromosome:
         x = list(self.x)
         ch = Chromosome(
             in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
-            hidden_height=x.pop(0),
             hidden_layers=x.pop(0),
+            hidden_height1=x.pop(0),
             hidden_bitwidth1=BITWIDTHS_MAPPING[x.pop(0)],
+            hidden_height2=x.pop(0),
             hidden_bitwidth2=BITWIDTHS_MAPPING[x.pop(0)],
+            hidden_height3=x.pop(0),
             hidden_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
             dropout=DROPOUT_MAPPING[x.pop(0)],
             activation=self.get_activation(x.pop(0)),
@@ -67,14 +71,18 @@ class RawChromosome:
 
     @staticmethod
     def get_bounds() -> tuple[np.ndarray, np.ndarray]:
+        layer_height_bounds = (1, 8)
+        layer_bitwidth_bounds = (0, len(BITWIDTHS_MAPPING) - 1)
         bounds = (
-            (0, len(BITWIDTHS_MAPPING) - 1),
-            (1, 8),
+            layer_bitwidth_bounds,
             (0, 3),
-            # Hidden layers bitwidths
-            (0, len(BITWIDTHS_MAPPING) - 1),
-            (0, len(BITWIDTHS_MAPPING) - 1),
-            (0, len(BITWIDTHS_MAPPING) - 1),
+            # Per-hidden layer config
+            layer_height_bounds,
+            layer_bitwidth_bounds,
+            layer_height_bounds,
+            layer_bitwidth_bounds,
+            layer_height_bounds,
+            layer_bitwidth_bounds,
             #
             (0, len(DROPOUT_MAPPING) - 1),
             (0, 3),
