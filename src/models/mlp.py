@@ -23,13 +23,14 @@ class MLPParams:
     out_height: int
 
     hidden_layers: int
+    hidden_layers_bitwidths: tuple[int]
 
     # Quantization params
     in_bitwidth: int
-    hidden_bitwidth: int
     activation: ActivationModule
 
     # Training params
+    # TODO: Could be moved to a separate class like `NNTrainingParams`
     dropout_rate: int = 0.0  # TODO: Parametrize?
     learning_rate: float = LEARNING_RATE
     weight_decay: float = 0.0  # TODO: Parametrize?
@@ -47,29 +48,34 @@ class MLP(nn.Module):
         if self.p.hidden_layers < 0:
             raise Exception("Model can't have negative amount of hidden layers")
 
-        layers = []
+        if self.p.hidden_layers > len(self.p.hidden_layers_bitwidths):
+            raise Exception(
+                "Not enough qunatization information for hidden layers. "
+                + f"Expected {self.p.hidden_layers} but got {len(self.p.hidden_layers_bitwidths)}"
+            )
 
-        layers_heights = (
-            [self.p.in_height]
-            + [self.p.hidden_height] * self.p.hidden_layers
-            + [self.p.out_height]
-        )
+        layers = []
 
         if self.p.in_bitwidth < 32:
             layers.append(Module_Quantize(self.p.quantization_mode, self.p.in_bitwidth))
 
         # Add hidden layers.
-        for _ in range(self.p.hidden_layers):
+        quant_levels = list(self.p.hidden_layers_bitwidths)
+        layers_heights = [self.p.in_height] + [
+            self.p.hidden_height for _ in range(self.p.hidden_layers)
+        ]
+        for i in range(self.p.hidden_layers):
+            perceptrons_in = layers_heights[i]
+            perceptrons_out = layers_heights[i + 1]
 
             # Add fully connected layer
-            layers.append(nn.Linear(layers_heights.pop(0), layers_heights[0]))
-            layers.append(nn.BatchNorm1d(layers_heights[0]))
+            layers.append(nn.Linear(perceptrons_in, perceptrons_out))
+            layers.append(nn.BatchNorm1d(perceptrons_out))
 
             # Add quantization
-            if self.p.hidden_bitwidth < 32:
-                layers.append(
-                    Module_Quantize(self.p.quantization_mode, self.p.hidden_bitwidth)
-                )
+            quantize_to = quant_levels[i]
+            if quantize_to < 32:
+                layers.append(Module_Quantize(self.p.quantization_mode, quantize_to))
 
             # Add dropout
             if self.p.dropout_rate > 0:
@@ -81,7 +87,9 @@ class MLP(nn.Module):
             )
 
         # Add output layer
-        layers.append(nn.Linear(layers_heights.pop(0), layers_heights[0]))
+        perceptrons_in = layers_heights[-1]
+        perceptrons_out = self.p.out_height
+        layers.append(nn.Linear(perceptrons_in, perceptrons_out))
         layers.append(nn.Softmax(dim=1))
 
         # Combine all layers into Sequential model

@@ -11,7 +11,9 @@ class Chromosome:
 
     hidden_height: int
     hidden_layers: int
-    hidden_bitwidth: int
+    hidden_bitwidth1: int
+    hidden_bitwidth2: int
+    hidden_bitwidth3: int
 
     dropout: float
     activation: ActivationModule
@@ -46,18 +48,20 @@ class RawChromosome:
     x: np.ndarray[int]
 
     def parse(self) -> Chromosome:
-        x = self.x
+        x = list(self.x)
         ch = Chromosome(
-            in_bitwidth=BITWIDTHS_MAPPING[x[0]],
-            hidden_height=x[1],
-            hidden_layers=x[2],
-            hidden_bitwidth=BITWIDTHS_MAPPING[x[3]],
-            dropout=DROPOUT_MAPPING[x[4]],
-            activation=self.get_activation(x[5]),
-            quatization_mode=self.get_qmode(x[6]),
-            binarization_mode=self.get_qmode(x[7]),
-            learning_rate=LEARNING_RATES_MAPPING[x[8]],
-            weight_decay=WEIGHT_DECAY_MAPPING[x[9]],
+            in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
+            hidden_height=x.pop(0),
+            hidden_layers=x.pop(0),
+            hidden_bitwidth1=BITWIDTHS_MAPPING[x.pop(0)],
+            hidden_bitwidth2=BITWIDTHS_MAPPING[x.pop(0)],
+            hidden_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
+            dropout=DROPOUT_MAPPING[x.pop(0)],
+            activation=self.get_activation(x.pop(0)),
+            quatization_mode=self.get_qmode(x.pop(0)),
+            binarization_mode=self.get_qmode(x.pop(0)),
+            learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
+            weight_decay=WEIGHT_DECAY_MAPPING[x.pop(0)],
         )
         return ch
 
@@ -67,7 +71,11 @@ class RawChromosome:
             (0, len(BITWIDTHS_MAPPING) - 1),
             (1, 8),
             (0, 3),
+            # Hidden layers bitwidths
             (0, len(BITWIDTHS_MAPPING) - 1),
+            (0, len(BITWIDTHS_MAPPING) - 1),
+            (0, len(BITWIDTHS_MAPPING) - 1),
+            #
             (0, len(DROPOUT_MAPPING) - 1),
             (0, 3),
             (0, 1),

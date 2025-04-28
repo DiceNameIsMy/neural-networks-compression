@@ -72,13 +72,13 @@ class MlpNasParams:
         return ("n_gen", self.algorithm_generations)
 
     @staticmethod
-    def load_population(path: str | None):
-        if path is None:
+    def load_population(filename: str | None):
+        if filename is None:
             return None
-        if not os.path.exists(path):
+        if not os.path.exists(POPULATION_FOLDER):
             return None
 
-        return pd.read_csv(path).values
+        return pd.read_csv(os.path.join(POPULATION_FOLDER, filename)).values
 
     @staticmethod
     def store_population(res: Result, filename: str):
@@ -87,4 +87,6 @@ class MlpNasParams:
         if not os.path.exists(POPULATION_FOLDER):
             os.makedirs(POPULATION_FOLDER)
 
-        pd.DataFrame(res.X).to_csv(filename, index=False)
+        pd.DataFrame(res.X).to_csv(
+            os.path.join(POPULATION_FOLDER, filename), index=False
+        )

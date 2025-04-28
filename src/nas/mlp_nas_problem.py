@@ -6,7 +6,7 @@ from pymoo.core.problem import ElementwiseProblem
 from src.datasets.dataset import Dataset
 from src.models.mlp import MLPParams, evaluate_model
 from src.models.quant.enums import ActivationModule
-from src.nas.mlp_chromosome import Chromosome, RawChromosome
+from src.nas.mlp_chromosome import BITWIDTHS_MAPPING, Chromosome, RawChromosome
 from src.nas.nas import MlpNasParams
 
 
@@ -23,8 +23,8 @@ class MlpNasProblem(ElementwiseProblem):
     def __init__(self, params: MlpNasParams, dataset: Dataset):
         x_low, x_high = RawChromosome.get_bounds()
         super().__init__(
-            n_var=RawChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
-        )  # A workaround for the rounding problem
+            n_var=RawChromosome.get_size(), n_obj=3, xl=x_low, xu=x_high + 0.99
+        )  # Part of a workaround to the rounding problem
 
         self.p = params
         self.dataset = dataset
@@ -42,14 +42,28 @@ class MlpNasProblem(ElementwiseProblem):
         )
         accuracy = perf["mean"]
 
-        f1 = -(self.normalize(accuracy, 0, 100))  # Maximize accuracy
+        # Maximize accuracy
+        f1 = -self.normalize(accuracy, 0, 100)
 
+        # Minimize NN complexity
         complexity = self.compute_nn_complexity(params)
         f2 = self.normalize(
             complexity, self.get_min_complexity(), self.get_max_complexity()
-        )  # Minimize NN complexity
+        )
 
-        out["F"] = [f1, f2]
+        # Minimize bitwidth sum
+        low, high = BITWIDTHS_MAPPING[0], BITWIDTHS_MAPPING[-1]
+        bitwidth_sum = ch.in_bitwidth
+        if ch.hidden_layers >= 1:
+            bitwidth_sum += ch.hidden_bitwidth1
+        if ch.hidden_layers >= 2:
+            bitwidth_sum += ch.hidden_bitwidth2
+        if ch.hidden_layers >= 3:
+            bitwidth_sum += ch.hidden_bitwidth3
+
+        f3 = self.normalize(bitwidth_sum, low * 4, high * 4)
+
+        out["F"] = [f1, f2, f3]
 
     def get_nn_params(self, ch: Chromosome) -> MLPParams:
         return MLPParams(
@@ -57,8 +71,12 @@ class MlpNasProblem(ElementwiseProblem):
             in_bitwidth=ch.in_bitwidth,
             out_height=self.dataset.output_size,
             hidden_height=ch.hidden_height,
-            hidden_bitwidth=ch.hidden_bitwidth,
             hidden_layers=ch.hidden_layers,
+            hidden_layers_bitwidths=[
+                ch.hidden_bitwidth1,
+                ch.hidden_bitwidth2,
+                ch.hidden_bitwidth3,
+            ],
             learning_rate=ch.learning_rate,
             weight_decay=ch.weight_decay,
             activation=ch.activation,
@@ -68,23 +86,21 @@ class MlpNasProblem(ElementwiseProblem):
         )
 
     def compute_nn_complexity(self, p: MLPParams) -> float:
-        has_hidden_layers = p.hidden_layers > 0
-
-        layer1_ops = 0
-        other_ops = 0
-        if has_hidden_layers:
-            layer1_ops += p.in_height * p.hidden_height
-
-            other_ops += (
-                p.hidden_height * p.hidden_height * p.hidden_layers
-            )  # Hidden layers
-            other_ops += p.hidden_height * p.out_height  # Output layer
-        else:
-            layer1_ops += p.in_height * p.out_height
-
         complexity = 0
-        complexity += layer1_ops * (math.log2(max(2, p.in_bitwidth)) * 3)
-        complexity += other_ops * (math.log2(max(2, p.hidden_bitwidth)) * 3)
+
+        # Compute input layer complexity
+        if p.hidden_layers > 0:
+            layer_in_mults = p.in_height * p.hidden_height
+        else:
+            layer_in_mults = p.in_height * p.out_height
+
+        complexity += layer_in_mults * (math.log2(max(2, p.in_bitwidth)) * 3)
+
+        # Compute hidden layers complexity
+        for i in range(p.hidden_layers):
+            mults = p.hidden_height**2
+            bitwidth = p.hidden_layers_bitwidths[i]
+            complexity += mults * (math.log2(max(2, bitwidth)) * 3)
 
         activation_coef = 3 if p.activation == ActivationModule.RELU else 1.2
         complexity *= activation_coef
