@@ -8,7 +8,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from src.constants import DEVICE, EPOCHS, LEARNING_RATE
-from src.models.quant.common import get_activation_module
+from src.models.quant import binary, binary_ReSTE, ternarize
 from src.models.quant.enums import ActivationModule, QMode
 from src.models.quant.weight_quant import Module_Quantize
 
@@ -29,6 +29,9 @@ class MLPParams:
     in_bitwidth: int
     activation: ActivationModule
 
+    reste_o: float = 1.5
+    reste_threshold: float = 1
+
     # Training params
     # TODO: Could be moved to a separate class like `NNTrainingParams`
     dropout_rate: int = 0.0  # TODO: Parametrize?
@@ -37,6 +40,22 @@ class MLPParams:
 
     epochs: int = EPOCHS
     quantization_mode: QMode = QMode.DET
+
+
+def get_activation_module(p: MLPParams):
+    match p.activation:
+        case ActivationModule.RELU:
+            return nn.ReLU()
+        case ActivationModule.BINARIZE:
+            return binary.Module_Binarize(p.quantization_mode)
+        case ActivationModule.BINARIZE_RESTE:
+            return binary_ReSTE.Module_Binarize_ReSTE(p.reste_threshold, p.reste_o)
+        case ActivationModule.TERNARIZE:
+            return ternarize.Module_Ternarize()
+        case _:
+            raise Exception(
+                f"Unknown activation function: {p.activation} of type {type(p.activation)}"
+            )
 
 
 class MLP(nn.Module):
@@ -88,9 +107,7 @@ class MLP(nn.Module):
                 layers.append(nn.Dropout(self.p.dropout_rate))
 
             # Add activation
-            layers.append(
-                get_activation_module(params.activation, params.quantization_mode)
-            )
+            layers.append(get_activation_module(params))
 
         # Add output layer
         perceptrons_in = layers_heights[-1]

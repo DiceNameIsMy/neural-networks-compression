@@ -15,6 +15,10 @@ class MlpNasProblem(ElementwiseProblem):
     #       I only have 2 objectives -> there isn't space for
     #       many distinct solutions. It that okay?
 
+    # TODO: It it better to use best accuracy instead of mean accuracy as an optimization goal?
+    #       Or perhaps I should keep using both, but then train
+    #       the final population again & show best accuracy?
+
     p: MlpNasParams
     dataset: Dataset
     train_loader = None
@@ -40,7 +44,7 @@ class MlpNasProblem(ElementwiseProblem):
             times=self.p.amount_of_evaluations,
             patience=self.p.patience,
         )
-        accuracy = perf["mean"]
+        accuracy = perf["max"]
 
         # Maximize accuracy
         f1 = -self.normalize(accuracy, 0, 100)

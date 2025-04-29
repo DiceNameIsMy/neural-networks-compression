@@ -18,7 +18,10 @@ class Chromosome:
     hidden_bitwidth3: int
 
     dropout: float
+
     activation: ActivationModule
+    reste_o: float
+
     quatization_mode: QMode
     binarization_mode: QMode
 
@@ -43,6 +46,7 @@ WEIGHT_DECAY_MAPPING = (
     0.001,
 )
 DROPOUT_MAPPING = (0.0, 0.1, 0.2)
+RESTE_O_MAPPING = (1.5, 2.0, 3.0, 4.0)
 
 
 @dataclass
@@ -62,6 +66,7 @@ class RawChromosome:
             hidden_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
             dropout=DROPOUT_MAPPING[x.pop(0)],
             activation=self.get_activation(x.pop(0)),
+            reste_o=x.pop(0),
             quatization_mode=self.get_qmode(x.pop(0)),
             binarization_mode=self.get_qmode(x.pop(0)),
             learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
@@ -86,6 +91,7 @@ class RawChromosome:
             #
             (0, len(DROPOUT_MAPPING) - 1),
             (0, 3),
+            (0, len(RESTE_O_MAPPING) - 1),
             (0, 1),
             (0, 1),
             (0, len(LEARNING_RATES_MAPPING) - 1),

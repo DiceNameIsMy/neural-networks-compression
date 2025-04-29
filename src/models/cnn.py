@@ -80,7 +80,7 @@ class CNN(nn.Module):
                     stride=layer.stride,
                 ),
                 nn.BatchNorm2d(layer.out_channels),
-                get_activation_module(p.activation, p.quantization_mode),
+                get_activation_module(p),
             ]
             if layer.add_pooling:
                 modules.append(nn.MaxPool2d(kernel_size=2))
@@ -98,7 +98,7 @@ class CNN(nn.Module):
             fc_layer = nn.Sequential(
                 Module_Quantize(self.p.quantization_mode, self.p.fc_bitwidth),
                 nn.Linear(prev_size, p.fc_height),
-                get_activation_module(p.activation, p.quantization_mode),
+                get_activation_module(p),
                 nn.Dropout(
                     p.dropout_rate
                 ),  # TODO: Exclude dropout if redundant (rate is 0.0)

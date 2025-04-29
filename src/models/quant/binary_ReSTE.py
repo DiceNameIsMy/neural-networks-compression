@@ -44,10 +44,10 @@ def approximate_function(x, o):
 
 
 class Module_Binarize_ReSTE(torch.nn.Module):
-    def __init__(self, t: float = 1.5, o: float = 1):
+    def __init__(self, threshold: float = 1.5, o: float = 1):
         super(Module_Binarize_ReSTE, self).__init__()
-        self.t = torch.tensor(t).float()
+        self.threshold = torch.tensor(threshold).float()
         self.o = torch.tensor(o).float()
 
     def forward(self, x):
-        return Binarize_ReSTE.apply(x, self.t, self.o)
+        return Binarize_ReSTE.apply(x, self.threshold, self.o)
