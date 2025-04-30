@@ -27,7 +27,7 @@ class CNNLayerParams:
 
 
 @dataclass
-class CNNParams2:
+class CNNParams:
     # Dataset specific params
     in_channels: int
     in_dimensions: int
@@ -75,43 +75,10 @@ class CNNParams2:
                 )
 
 
-@dataclass
-class CNNParams:
-    # Dataset specific params
-    in_channels: int
-    in_dimensions: int
-    in_bitwidth: int
-    out_height: int
-
-    # NN Architecture params
-    fc_height: int
-    fc_layers: int
-    fc_bitwidth: int
-    conv_layers: list[CNNLayerParams]
-
-    activation: ActivationModule = ActivationModule.BINARIZE
-
-    # Training params
-    dropout_rate: int = 0.0
-    learning_rate: float = LEARNING_RATE
-    epochs: int = EPOCHS
-    quantization_mode: QMode = QMode.DET
-
-    def __post_init__(self):
-        assert 0 < self.in_channels
-        assert 0 < self.in_bitwidth
-
-        assert len(self.conv_layers) >= 1, "CNN must have at least 1 convolution layer"
-
-        assert 0 < self.fc_layers, "CNN must have at least 1 fully connected layer"
-        assert 0 < self.fc_bitwidth
-        assert self.fc_bitwidth <= 32
-
-
 class CNN(nn.Module):
     p: CNNParams
 
-    def __init__(self, p: CNNParams2):
+    def __init__(self, p: CNNParams):
         super(CNN, self).__init__()
         self.p = p
 
@@ -163,7 +130,7 @@ class CNN(nn.Module):
 
     @staticmethod
     @torch.no_grad()
-    def _get_fc_in_height(p: CNNParams2, conv_layers: nn.ModuleList) -> int:
+    def _get_fc_in_height(p: CNNParams, conv_layers: nn.ModuleList) -> int:
         # Forward pass dummy input through convolutional layers
         dummy_input = torch.zeros(1, p.in_channels, p.in_dimensions, p.in_dimensions)
         x = dummy_input
@@ -175,7 +142,7 @@ class CNN(nn.Module):
         return flattened.size(1)
 
     @classmethod
-    def build_conv_layers(cls, p: CNNParams2) -> nn.ModuleList:
+    def build_conv_layers(cls, p: CNNParams) -> nn.ModuleList:
         ConvModule = p.get_conv_layer()
         conv_layers = nn.ModuleList()
 
@@ -205,7 +172,7 @@ class CNN(nn.Module):
         return conv_layers
 
     @classmethod
-    def build_fc_layers(cls, p: CNNParams2, fc_in_height: int) -> nn.ModuleList:
+    def build_fc_layers(cls, p: CNNParams, fc_in_height: int) -> nn.ModuleList:
         if p.fc.hidden_layers < 0:
             raise Exception("Model can't have negative amount of hidden layers")
 
