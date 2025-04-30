@@ -29,33 +29,35 @@ class MLPParams:
     in_bitwidth: int
     activation: ActivationModule
 
+    # Activation specific params
     reste_o: float = 1.5
     reste_threshold: float = 1
+    quantization_mode: QMode = QMode.DET
 
-    # Training params
-    # TODO: Could be moved to a separate class like `NNTrainingParams`
-    dropout_rate: int = 0.0  # TODO: Parametrize?
+    # Other
+    dropout_rate: int = 0.0
+
+    # NN Training params
+    epochs: int = EPOCHS
     learning_rate: float = LEARNING_RATE
     weight_decay: float = 0.0  # TODO: Parametrize?
 
-    epochs: int = EPOCHS
-    quantization_mode: QMode = QMode.DET
-
-
-def get_activation_module(p: MLPParams):
-    match p.activation:
-        case ActivationModule.RELU:
-            return nn.ReLU()
-        case ActivationModule.BINARIZE:
-            return binary.Module_Binarize(p.quantization_mode)
-        case ActivationModule.BINARIZE_RESTE:
-            return binary_ReSTE.Module_Binarize_ReSTE(p.reste_threshold, p.reste_o)
-        case ActivationModule.TERNARIZE:
-            return ternarize.Module_Ternarize()
-        case _:
-            raise Exception(
-                f"Unknown activation function: {p.activation} of type {type(p.activation)}"
-            )
+    def get_activation_module(self):
+        match self.activation:
+            case ActivationModule.RELU:
+                return nn.ReLU()
+            case ActivationModule.BINARIZE:
+                return binary.Module_Binarize(self.quantization_mode)
+            case ActivationModule.BINARIZE_RESTE:
+                return binary_ReSTE.Module_Binarize_ReSTE(
+                    self.reste_threshold, self.reste_o
+                )
+            case ActivationModule.TERNARIZE:
+                return ternarize.Module_Ternarize()
+            case _:
+                raise Exception(
+                    f"Unknown activation function: {self.activation} of type {type(self.activation)}"
+                )
 
 
 class MLP(nn.Module):
@@ -107,7 +109,7 @@ class MLP(nn.Module):
                 layers.append(nn.Dropout(self.p.dropout_rate))
 
             # Add activation
-            layers.append(get_activation_module(params))
+            layers.append(self.p.get_activation_module())
 
         # Add output layer
         perceptrons_in = layers_heights[-1]

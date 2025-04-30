@@ -2,6 +2,8 @@
 
 import torch
 
+from src.models.quant.conv import WrapperConv2d
+
 
 def Alpha(tensor: torch.Tensor, delta):
     Alpha = []
@@ -61,7 +63,7 @@ def Ternarize(tensor: torch.Tensor):
 
 class Conv2DFunctionQUAN(torch.autograd.Function):
     def __init__(self):
-        super(Conv2DFunctionQUAN, self).__init__()
+        super().__init__()
         self.com_num = 0
         self.weight_fp32 = None
 
@@ -87,7 +89,7 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
         elif quan_mode == "BINARY":
             weight.data[:, :, :, :] = Binarize(weight.data.clone().detach())[
                 :, :, :, :
-            ]  # do ternarization
+            ]  # do binarization
         else:
             pass
 
@@ -150,7 +152,7 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
         )
 
 
-class TernaryConv2d(torch.nn.Conv2d):
+class TernaryConv2d(WrapperConv2d):
     def __init__(
         self,
         in_channels,
@@ -162,7 +164,7 @@ class TernaryConv2d(torch.nn.Conv2d):
         groups=1,
         bias=True,
     ):
-        super(TernaryConv2d, self).__init__(
+        super().__init__(
             in_channels,
             out_channels,
             kernel_size,
@@ -186,7 +188,7 @@ class TernaryConv2d(torch.nn.Conv2d):
         )
 
 
-class BinaryConv2d(torch.nn.Conv2d):
+class BinaryConv2d(WrapperConv2d):
     def __init__(
         self,
         in_channels,
@@ -198,7 +200,7 @@ class BinaryConv2d(torch.nn.Conv2d):
         groups=1,
         bias=True,
     ):
-        super(BinaryConv2d, self).__init__(
+        super().__init__(
             in_channels,
             out_channels,
             kernel_size,
