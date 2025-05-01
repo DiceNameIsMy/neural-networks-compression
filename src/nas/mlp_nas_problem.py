@@ -4,9 +4,9 @@ from functools import lru_cache
 from pymoo.core.problem import ElementwiseProblem
 
 from src.datasets.dataset import Dataset
-from src.models.mlp import MLPParams, evaluate_model
+from src.models.mlp import FCLayerParams, MLPParams, evaluate_model
 from src.models.quant.enums import ActivationModule
-from src.nas.mlp_chromosome import BITWIDTHS_MAPPING, Chromosome, RawChromosome
+from src.nas.mlp_chromosome import BITWIDTHS_MAPPING, MLPChromosome, RawChromosome
 from src.nas.nas import MlpNasParams
 
 
@@ -69,22 +69,19 @@ class MlpNasProblem(ElementwiseProblem):
 
         out["F"] = [f1, f2, f3]
 
-    def get_nn_params(self, ch: Chromosome) -> MLPParams:
+    def get_nn_params(self, ch: MLPChromosome) -> MLPParams:
+        layers = []
+        layers.append(FCLayerParams(self.dataset.input_size, ch.in_bitwidth))
+        if ch.hidden_layers >= 1:
+            layers.append(FCLayerParams(ch.hidden_height1, ch.hidden_bitwidth1))
+        if ch.hidden_layers >= 2:
+            layers.append(FCLayerParams(ch.hidden_height2, ch.hidden_bitwidth2))
+        if ch.hidden_layers >= 3:
+            layers.append(FCLayerParams(ch.hidden_height3, ch.hidden_bitwidth3))
+        layers.append(FCLayerParams(self.dataset.output_size, 32))
+
         return MLPParams(
-            in_height=self.dataset.input_size,
-            in_bitwidth=ch.in_bitwidth,
-            out_height=self.dataset.output_size,
-            hidden_layers=ch.hidden_layers,
-            hidden_layers_heights=[
-                ch.hidden_height1,
-                ch.hidden_height2,
-                ch.hidden_height3,
-            ],
-            hidden_layers_bitwidths=[
-                ch.hidden_bitwidth1,
-                ch.hidden_bitwidth2,
-                ch.hidden_bitwidth3,
-            ],
+            layers=layers,
             learning_rate=ch.learning_rate,
             weight_decay=ch.weight_decay,
             activation=ch.activation,

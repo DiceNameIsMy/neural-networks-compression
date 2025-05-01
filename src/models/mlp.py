@@ -16,17 +16,16 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class MLPParams:
-    # MLP Architecture params
-    in_height: int
-    out_height: int
+class FCLayerParams:
+    height: int
+    bitwidth: int
 
-    hidden_layers: int
-    hidden_layers_heights: tuple[int]
-    hidden_layers_bitwidths: tuple[int]
+
+@dataclass
+class MLPParams:
+    layers: list[FCLayerParams]
 
     # Quantization params
-    in_bitwidth: int
     activation: ActivationModule
 
     # Activation specific params
@@ -83,26 +82,20 @@ class MLP(nn.Module):
 
         layers = []
 
-        if self.p.in_bitwidth < 32:
-            layers.append(Module_Quantize(self.p.quantization_mode, self.p.in_bitwidth))
+        in_layer = self.p.layers[0]
+        if in_layer.bitwidth < 32:
+            layers.append(Module_Quantize(self.p.quantization_mode, in_layer.bitwidth))
 
-        # Add hidden layers.
-        quant_levels = list(self.p.hidden_layers_bitwidths)
-        layers_heights = [self.p.in_height] + [
-            self.p.hidden_layers_heights[i] for i in range(self.p.hidden_layers)
-        ]
-        for i in range(self.p.hidden_layers):
-            perceptrons_in = layers_heights[i]
-            perceptrons_out = layers_heights[i + 1]
-
-            # Add fully connected layer
-            layers.append(nn.Linear(perceptrons_in, perceptrons_out))
-            layers.append(nn.BatchNorm1d(perceptrons_out))
+        last_layer_height = in_layer.height
+        for hidden in self.p.layers[1:-1]:
+            layers.append(nn.Linear(last_layer_height, hidden.height))
+            layers.append(nn.BatchNorm1d(hidden.height))
 
             # Add quantization
-            quantize_to = quant_levels[i]
-            if quantize_to < 32:
-                layers.append(Module_Quantize(self.p.quantization_mode, quantize_to))
+            if hidden.bitwidth < 32:
+                layers.append(
+                    Module_Quantize(self.p.quantization_mode, hidden.bitwidth)
+                )
 
             # Add dropout
             if self.p.dropout_rate > 0:
@@ -111,17 +104,25 @@ class MLP(nn.Module):
             # Add activation
             layers.append(self.p.get_activation_module())
 
-        # Add output layer
-        perceptrons_in = layers_heights[-1]
-        perceptrons_out = self.p.out_height
-        layers.append(nn.Linear(perceptrons_in, perceptrons_out))
-        layers.append(nn.Softmax(dim=1))
+            last_layer_height = hidden.height
+
+        out_layer = self.p.layers[-1]
+        layers.append(nn.Linear(last_layer_height, out_layer.height))
 
         # Combine all layers into Sequential model
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
-        return self.model(x)
+        x = self.model(x)
+        if self.training:
+            x = nn.Softmax(dim=1)(x)
+        else:
+            if self.p.layers[-1].bitwidth < 32:
+                x = Module_Quantize(
+                    self.p.quantization_mode, self.p.layers[-1].bitwidth
+                )(x)
+
+        return x
 
 
 class MLPEvaluator:

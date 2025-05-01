@@ -2,6 +2,8 @@ import logging
 
 import matplotlib.pyplot as plt
 
+from src.models.mlp import FCLayerParams
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -14,13 +16,13 @@ def main():
     from src.models.mlp import MLPEvaluator, MLPParams
     from src.models.quant.enums import ActivationModule, QMode
 
+    DatasetClass = CardioDataset
     p = MLPParams(
-        in_height=CardioDataset.input_size,
-        in_bitwidth=16,
-        out_height=CardioDataset.output_size,
-        hidden_layers=2,
-        hidden_layers_heights=(32, 16),
-        hidden_layers_bitwidths=(8, 8),
+        layers=[
+            FCLayerParams(DatasetClass.input_size, bitwidth=8),
+            FCLayerParams(64, bitwidth=16),
+            FCLayerParams(DatasetClass.output_size, bitwidth=8),
+        ],
         learning_rate=0.01,
         activation=ActivationModule.RELU,
         epochs=100,

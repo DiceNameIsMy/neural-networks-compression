@@ -6,7 +6,7 @@ from src.models.quant.enums import ActivationModule, QMode
 
 
 @dataclass
-class Chromosome:
+class MLPChromosome:
     in_bitwidth: int
 
     hidden_layers: int
@@ -53,9 +53,9 @@ RESTE_O_MAPPING = (1.5, 2.0, 3.0, 4.0)
 class RawChromosome:
     x: np.ndarray[int]
 
-    def parse(self) -> Chromosome:
+    def parse(self) -> MLPChromosome:
         x = list(self.x)
-        ch = Chromosome(
+        ch = MLPChromosome(
             in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
             hidden_layers=x.pop(0),
             hidden_height1=x.pop(0),
@@ -107,7 +107,7 @@ class RawChromosome:
 
     @staticmethod
     def get_size() -> tuple[np.ndarray, np.ndarray]:
-        return len(fields(Chromosome))
+        return len(fields(MLPChromosome))
 
     @staticmethod
     def get_activation(a: int) -> ActivationModule:
