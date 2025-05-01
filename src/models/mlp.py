@@ -8,6 +8,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from src.constants import DEVICE, EPOCHS, LEARNING_RATE
+from src.models.nn import ActivationParams
 from src.models.quant import binary, binary_ReSTE, ternarize
 from src.models.quant.enums import ActivationModule, QMode
 from src.models.quant.weight_quant import Module_Quantize
@@ -24,13 +25,7 @@ class FCLayerParams:
 @dataclass
 class MLPParams:
     layers: list[FCLayerParams]
-
-    # Quantization params
-    activation: ActivationModule
-
-    # Activation specific params
-    reste_o: float = 1.5
-    reste_threshold: float = 1
+    activation: ActivationParams
     quantization_mode: QMode = QMode.DET
 
     # Other
@@ -42,20 +37,21 @@ class MLPParams:
     weight_decay: float = 0.0  # TODO: Parametrize?
 
     def get_activation_module(self):
-        match self.activation:
+        match self.activation.activation:
             case ActivationModule.RELU:
                 return nn.ReLU()
             case ActivationModule.BINARIZE:
-                return binary.Module_Binarize(self.quantization_mode)
+                return binary.Module_Binarize(self.activation.binary_quantization_mode)
             case ActivationModule.BINARIZE_RESTE:
                 return binary_ReSTE.Module_Binarize_ReSTE(
-                    self.reste_threshold, self.reste_o
+                    self.activation.reste_threshold, self.activation.reste_o
                 )
             case ActivationModule.TERNARIZE:
                 return ternarize.Module_Ternarize()
             case _:
                 raise Exception(
-                    f"Unknown activation function: {self.activation} of type {type(self.activation)}"
+                    "Unknown activation function: "
+                    + f"{self.activation.activation} of type {type(self.activation.activation)}"
                 )
 
 
@@ -65,20 +61,8 @@ class MLP(nn.Module):
     def __init__(self, params: MLPParams):
         super(MLP, self).__init__()
         self.p = params
-        if self.p.hidden_layers < 0:
-            raise Exception("Model can't have negative amount of hidden layers")
-
-        if self.p.hidden_layers > len(self.p.hidden_layers_bitwidths):
-            raise Exception(
-                "Not enough qunatization information for hidden layers. "
-                + f"Expected {self.p.hidden_layers} but got {len(self.p.hidden_layers_bitwidths)}"
-            )
-
-        if self.p.hidden_layers > len(self.p.hidden_layers_heights):
-            raise Exception(
-                "Not enough height information for hidden layers. "
-                + f"Expected {self.p.hidden_layers} but got {len(self.p.hidden_layers_heights)}"
-            )
+        if len(self.p.layers) < 2:
+            raise Exception("Model can't have negative less than 2 layers")
 
         layers = []
 
@@ -123,6 +107,17 @@ class MLP(nn.Module):
                 )(x)
 
         return x
+
+    def summarize_architecture(self):
+        summary = []
+        for idx, layer in enumerate(self.model):
+            layer_info = {
+                "index": idx,
+                "type": type(layer).__name__,
+                "details": str(layer),
+            }
+            summary.append(layer_info)
+        return summary
 
 
 class MLPEvaluator:

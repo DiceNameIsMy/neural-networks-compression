@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CNNLayerParams:
+class ConvLayerParams:
     out_channels: int
     kernel_size: int
     stride: int
@@ -34,7 +34,7 @@ class CNNParams:
     in_bitwidth: int
     out_height: int
 
-    conv_layers: list[CNNLayerParams]
+    conv_layers: list[ConvLayerParams]
     fc: MLPParams
 
     activation: ActivationModule = ActivationModule.BINARIZE
@@ -113,6 +113,8 @@ class CNN(nn.Module):
 
     @torch.no_grad()
     def inspect_conv_layers(self):
+        logger.info("Inspecting convolutional layers...")
+
         # Forward pass dummy input through convolutional layers
         dummy_input = torch.zeros(
             1, self.p.in_channels, self.p.in_dimensions, self.p.in_dimensions
@@ -173,43 +175,24 @@ class CNN(nn.Module):
 
     @classmethod
     def build_fc_layers(cls, p: CNNParams, fc_in_height: int) -> nn.ModuleList:
-        if p.fc.hidden_layers < 0:
-            raise Exception("Model can't have negative amount of hidden layers")
+        if len(p.fc.layers) < 2:
+            raise Exception("Model can't have negative less than 2 layers")
 
-        if p.fc.hidden_layers > len(p.fc.hidden_layers_bitwidths):
-            raise Exception(
-                "Not enough qunatization information for hidden layers. "
-                + f"Expected {p.fc.hidden_layers} but got {len(p.fc.hidden_layers_bitwidths)}"
-            )
+        layers = []
 
-        if p.fc.hidden_layers > len(p.fc.hidden_layers_heights):
-            raise Exception(
-                "Not enough height information for hidden layers. "
-                + f"Expected {p.fc.hidden_layers} but got {len(p.fc.hidden_layers_heights)}"
-            )
+        in_layer = p.fc.layers[0]
+        in_layer.height = fc_in_height  # IMPORTANT: in_height is set by conv layers.
+        if in_layer.bitwidth < 32:
+            layers.append(Module_Quantize(p.fc.quantization_mode, in_layer.bitwidth))
 
-        layers = nn.ModuleList()
-
-        if p.fc.in_bitwidth < 32:
-            layers.append(Module_Quantize(p.fc.quantization_mode, p.fc.in_bitwidth))
-
-        # Add hidden layers.
-        quant_levels = list(p.fc.hidden_layers_bitwidths)
-        layers_heights = [fc_in_height] + [
-            p.fc.hidden_layers_heights[i] for i in range(p.fc.hidden_layers)
-        ]
-        for i in range(p.fc.hidden_layers):
-            perceptrons_in = layers_heights[i]
-            perceptrons_out = layers_heights[i + 1]
-
-            # Add fully connected layer
-            layers.append(nn.Linear(perceptrons_in, perceptrons_out))
-            layers.append(nn.BatchNorm1d(perceptrons_out))
+        last_layer_height = in_layer.height
+        for hidden in p.fc.layers[1:-1]:
+            layers.append(nn.Linear(last_layer_height, hidden.height))
+            layers.append(nn.BatchNorm1d(hidden.height))
 
             # Add quantization
-            quantize_to = quant_levels[i]
-            if quantize_to < 32:
-                layers.append(Module_Quantize(p.fc.quantization_mode, quantize_to))
+            if hidden.bitwidth < 32:
+                layers.append(Module_Quantize(p.fc.quantization_mode, hidden.bitwidth))
 
             # Add dropout
             if p.fc.dropout_rate > 0:
@@ -218,14 +201,12 @@ class CNN(nn.Module):
             # Add activation
             layers.append(p.fc.get_activation_module())
 
-        # Add output layer
-        perceptrons_in = layers_heights[-1]
-        perceptrons_out = p.fc.out_height
-        layers.append(nn.Linear(perceptrons_in, perceptrons_out))
-        layers.append(nn.Softmax(dim=1))
+            last_layer_height = hidden.height
 
-        # Combine all layers into Sequential model
-        return layers
+        out_layer = p.fc.layers[-1]
+        layers.append(nn.Linear(last_layer_height, out_layer.height))
+
+        return nn.Sequential(*layers)
 
 
 @torch.no_grad()

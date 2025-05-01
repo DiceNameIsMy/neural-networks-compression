@@ -5,6 +5,7 @@ from pymoo.core.problem import ElementwiseProblem
 
 from src.datasets.dataset import Dataset
 from src.models.mlp import FCLayerParams, MLPParams, evaluate_model
+from src.models.nn import ActivationParams
 from src.models.quant.enums import ActivationModule
 from src.nas.mlp_chromosome import BITWIDTHS_MAPPING, MLPChromosome, RawChromosome
 from src.nas.nas import MlpNasParams
@@ -82,9 +83,13 @@ class MlpNasProblem(ElementwiseProblem):
 
         return MLPParams(
             layers=layers,
+            activation=ActivationParams(
+                activation=ch.activation,
+                reste_o=ch.reste_o,
+                binary_quantization_mode=ch.quatization_mode,
+            ),
             learning_rate=ch.learning_rate,
             weight_decay=ch.weight_decay,
-            activation=ch.activation,
             epochs=self.p.epochs,
             dropout_rate=ch.dropout,
             quantization_mode=ch.quatization_mode,
@@ -93,22 +98,15 @@ class MlpNasProblem(ElementwiseProblem):
     def compute_nn_complexity(self, p: MLPParams) -> float:
         complexity = 0
 
-        # Compute input layer complexity
-        if p.hidden_layers > 0:
-            layer_in_mults = p.in_height * p.hidden_layers_heights[0]
-        else:
-            layer_in_mults = p.in_height * p.out_height
-
-        complexity += layer_in_mults * (math.log2(max(2, p.in_bitwidth)) * 3)
-
-        # Compute hidden layers complexity
-        heights = list(p.hidden_layers_heights) + [p.out_height]
-        for i in range(p.hidden_layers):
-            mults = heights[i] * heights[i + 1]
-            bitwidth = p.hidden_layers_bitwidths[i]
+        prev_layer = p.layers[0]
+        for layer in p.layers[1:]:
+            mults = prev_layer.height * layer.height
+            bitwidth = prev_layer.bitwidth
             complexity += mults * (math.log2(max(2, bitwidth)) * 3)
 
-        activation_coef = 3 if p.activation == ActivationModule.RELU else 1.2
+            prev_layer = layer
+
+        activation_coef = 3 if p.activation.activation == ActivationModule.RELU else 1.2
         complexity *= activation_coef
 
         return complexity

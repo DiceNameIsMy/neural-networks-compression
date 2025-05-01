@@ -3,6 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 
 from src.models.mlp import FCLayerParams
+from src.models.nn import ActivationParams
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,8 +24,11 @@ def main():
             FCLayerParams(64, bitwidth=16),
             FCLayerParams(DatasetClass.output_size, bitwidth=8),
         ],
+        activation=ActivationParams(
+            activation=ActivationModule.RELU,
+            binary_quantization_mode=QMode.DET,
+        ),
         learning_rate=0.01,
-        activation=ActivationModule.RELU,
         epochs=100,
         dropout_rate=0.2,
         quantization_mode=QMode.DET,
