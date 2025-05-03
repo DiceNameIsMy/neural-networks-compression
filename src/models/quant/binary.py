@@ -55,3 +55,18 @@ class Module_Binarize(torch.nn.Module):
 
     def forward(self, x):
         return binarize(x, self.qmode)
+
+
+class BinarizeLinear(torch.nn.Linear):
+
+    def __init__(self, *kargs, **kwargs):
+        super(BinarizeLinear, self).__init__(*kargs, **kwargs)
+
+    def forward(self, input):
+        weight_b = binarize(self.weight, QMode.DET)
+        out = torch.nn.functional.linear(input, weight_b)
+        if self.bias is not None:
+            self.bias.org = self.bias.data.clone()
+            out += self.bias.view(1, -1).expand_as(out)
+
+        return out

@@ -55,14 +55,14 @@ class MLPParams:
                 )
 
 
-class MLP(nn.Module):
+class BMLP(nn.Module):
     p: MLPParams
 
     def __init__(self, params: MLPParams):
-        super(MLP, self).__init__()
+        super().__init__()
         self.p = params
         if len(self.p.layers) < 2:
-            raise Exception("Model can't have negative less than 2 layers")
+            raise Exception("Model can't have less than 2 layers")
 
         layers = []
 
@@ -72,6 +72,58 @@ class MLP(nn.Module):
 
         last_layer_height = in_layer.height
         for hidden in self.p.layers[1:-1]:
+            layers.append(binary.BinarizeLinear(last_layer_height, hidden.height))
+            layers.append(nn.BatchNorm1d(hidden.height))
+
+            # Add activation
+            layers.append(self.p.get_activation_module())
+
+            last_layer_height = hidden.height
+
+        # Last layer
+        last_layer = self.p.layers[-1]
+        layers.append(binary.BinarizeLinear(last_layer_height, last_layer.height))
+        layers.append(nn.BatchNorm1d(last_layer.height))
+
+        # Combine all layers into Sequential model
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.layers(x)
+        if self.training:
+            x = nn.Softmax(dim=1)(x)
+
+        return x
+
+    def summarize_architecture(self):
+        summary = []
+        for idx, layer in enumerate(self.layers):
+            layer_info = {
+                "index": idx,
+                "type": type(layer).__name__,
+                "details": str(layer),
+            }
+            summary.append(layer_info)
+        return summary
+
+
+class MLP(nn.Module):
+    p: MLPParams
+
+    def __init__(self, params: MLPParams):
+        super().__init__()
+        self.p = params
+        if len(self.p.layers) < 2:
+            raise Exception("Model can't have less than 2 layers")
+
+        layers = []
+
+        in_layer = self.p.layers[0]
+        if in_layer.bitwidth < 32:
+            layers.append(Module_Quantize(self.p.quantization_mode, in_layer.bitwidth))
+
+        last_layer_height = in_layer.height
+        for hidden in self.p.layers[1:]:
             layers.append(nn.Linear(last_layer_height, hidden.height))
             layers.append(nn.BatchNorm1d(hidden.height))
 
@@ -90,27 +142,19 @@ class MLP(nn.Module):
 
             last_layer_height = hidden.height
 
-        out_layer = self.p.layers[-1]
-        layers.append(nn.Linear(last_layer_height, out_layer.height))
-
         # Combine all layers into Sequential model
-        self.model = nn.Sequential(*layers)
+        self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.model(x)
+        x = self.layers(x)
         if self.training:
             x = nn.Softmax(dim=1)(x)
-        else:
-            if self.p.layers[-1].bitwidth < 32:
-                x = Module_Quantize(
-                    self.p.quantization_mode, self.p.layers[-1].bitwidth
-                )(x)
 
         return x
 
     def summarize_architecture(self):
         summary = []
-        for idx, layer in enumerate(self.model):
+        for idx, layer in enumerate(self.layers):
             layer_info = {
                 "index": idx,
                 "type": type(layer).__name__,
@@ -136,12 +180,12 @@ class MLPEvaluator:
         self.test_loader = test_loader
         self.early_stop_patience = early_stop_patience
 
-    def train_model(self, params: MLPParams) -> float:
+    def train_model(self, params: MLPParams, Model=MLP) -> float:
         self.min_loss = float("inf")
         self.epochs_without_improvements = 0
         self.train_log = []
 
-        model = MLP(params).to(DEVICE)
+        model = Model(params).to(DEVICE)
         # best_model = copy.deepcopy(model)
 
         best_accuracy = 0

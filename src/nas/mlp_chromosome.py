@@ -46,6 +46,8 @@ WEIGHT_DECAY_MAPPING = (
     0.001,
 )
 DROPOUT_MAPPING = (0.0, 0.1, 0.2)
+ACTIVATION_MAPPING = tuple(act for act in ActivationModule)
+QMODE_MAPPING = tuple(q for q in QMode)
 RESTE_O_MAPPING = (1.5, 2.0, 3.0, 4.0)
 
 
@@ -65,10 +67,10 @@ class RawChromosome:
             hidden_height3=x.pop(0),
             hidden_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
             dropout=DROPOUT_MAPPING[x.pop(0)],
-            activation=self.get_activation(x.pop(0)),
+            activation=ACTIVATION_MAPPING[x.pop(0)],
             reste_o=x.pop(0),
-            quatization_mode=self.get_qmode(x.pop(0)),
-            binarization_mode=self.get_qmode(x.pop(0)),
+            quatization_mode=QMODE_MAPPING[x.pop(0)],
+            binarization_mode=QMODE_MAPPING[x.pop(0)],
             learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
             weight_decay=WEIGHT_DECAY_MAPPING[x.pop(0)],
         )
@@ -90,10 +92,10 @@ class RawChromosome:
             layer_bitwidth_bounds,
             #
             (0, len(DROPOUT_MAPPING) - 1),
-            (0, 3),
+            (0, len(ACTIVATION_MAPPING) - 1),
             (0, len(RESTE_O_MAPPING) - 1),
-            (0, 1),
-            (0, 1),
+            (0, len(QMODE_MAPPING) - 1),
+            (0, len(QMODE_MAPPING) - 1),
             (0, len(LEARNING_RATES_MAPPING) - 1),
             (0, len(WEIGHT_DECAY_MAPPING) - 1),
         )
@@ -108,25 +110,3 @@ class RawChromosome:
     @staticmethod
     def get_size() -> tuple[np.ndarray, np.ndarray]:
         return len(fields(MLPChromosome))
-
-    @staticmethod
-    def get_activation(a: int) -> ActivationModule:
-        if a == 0:
-            return ActivationModule.RELU
-        elif a == 1:
-            return ActivationModule.BINARIZE_RESTE
-        elif a == 2:
-            return ActivationModule.BINARIZE
-        elif a == 3:
-            return ActivationModule.TERNARIZE
-        else:
-            raise ValueError(f"Invalid activation function index: {a}")
-
-    @staticmethod
-    def get_qmode(q: int) -> QMode:
-        if q == 0:
-            return QMode.DET
-        elif q == 1:
-            return QMode.STOCH
-        else:
-            raise ValueError(f"Invalid quantization mode index: {q}")
