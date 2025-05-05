@@ -183,7 +183,7 @@ class CNN(nn.Module):
         in_layer = p.fc.layers[0]
         in_layer.height = fc_in_height  # IMPORTANT: in_height is set by conv layers.
         if in_layer.bitwidth < 32:
-            layers.append(Module_Quantize(p.fc.quantization_mode, in_layer.bitwidth))
+            layers.append(Module_Quantize(p.fc.qmode, in_layer.bitwidth))
 
         last_layer_height = in_layer.height
         for hidden in p.fc.layers[1:-1]:
@@ -192,7 +192,7 @@ class CNN(nn.Module):
 
             # Add quantization
             if hidden.bitwidth < 32:
-                layers.append(Module_Quantize(p.fc.quantization_mode, hidden.bitwidth))
+                layers.append(Module_Quantize(p.fc.qmode, hidden.bitwidth))
 
             # Add dropout
             if p.fc.dropout_rate > 0:

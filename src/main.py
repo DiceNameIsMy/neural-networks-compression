@@ -26,12 +26,12 @@ def main():
         ],
         activation=ActivationParams(
             activation=ActivationModule.RELU,
-            binary_quantization_mode=QMode.DET,
+            binary_qmode=QMode.DET,
         ),
         learning_rate=0.01,
         epochs=100,
         dropout_rate=0.2,
-        quantization_mode=QMode.DET,
+        qmode=QMode.DET,
     )
     train_loader, test_loader = CardioDataset.get_dataloaders(batch_size=64)
 

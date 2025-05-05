@@ -86,13 +86,13 @@ class MlpNasProblem(ElementwiseProblem):
             activation=ActivationParams(
                 activation=ch.activation,
                 reste_o=ch.reste_o,
-                binary_quantization_mode=ch.quatization_mode,
+                binary_qmode=ch.quatization_mode,
             ),
             learning_rate=ch.learning_rate,
             weight_decay=ch.weight_decay,
             epochs=self.p.epochs,
             dropout_rate=ch.dropout,
-            quantization_mode=ch.quatization_mode,
+            qmode=ch.quatization_mode,
         )
 
     def compute_nn_complexity(self, p: MLPParams) -> float:

@@ -26,7 +26,7 @@ class FCLayerParams:
 class MLPParams:
     layers: list[FCLayerParams]
     activation: ActivationParams
-    quantization_mode: QMode = QMode.DET
+    qmode: QMode = QMode.DET
 
     # Other
     dropout_rate: int = 0.0
@@ -41,7 +41,7 @@ class MLPParams:
             case ActivationModule.RELU:
                 return nn.ReLU()
             case ActivationModule.BINARIZE:
-                return binary.Module_Binarize(self.activation.binary_quantization_mode)
+                return binary.Module_Binarize(self.activation.binary_qmode)
             case ActivationModule.BINARIZE_RESTE:
                 return binary_ReSTE.Module_Binarize_ReSTE(
                     self.activation.reste_threshold, self.activation.reste_o
@@ -68,7 +68,7 @@ class BMLP(nn.Module):
 
         in_layer = self.p.layers[0]
         if in_layer.bitwidth < 32:
-            layers.append(Module_Quantize(self.p.quantization_mode, in_layer.bitwidth))
+            layers.append(Module_Quantize(self.p.qmode, in_layer.bitwidth))
 
         last_layer_height = in_layer.height
         for hidden in self.p.layers[1:-1]:
@@ -120,7 +120,7 @@ class MLP(nn.Module):
 
         in_layer = self.p.layers[0]
         if in_layer.bitwidth < 32:
-            layers.append(Module_Quantize(self.p.quantization_mode, in_layer.bitwidth))
+            layers.append(Module_Quantize(self.p.qmode, in_layer.bitwidth))
 
         last_layer_height = in_layer.height
         for hidden in self.p.layers[1:]:
@@ -129,9 +129,7 @@ class MLP(nn.Module):
 
             # Add quantization
             if hidden.bitwidth < 32:
-                layers.append(
-                    Module_Quantize(self.p.quantization_mode, hidden.bitwidth)
-                )
+                layers.append(Module_Quantize(self.p.qmode, hidden.bitwidth))
 
             # Add dropout
             if self.p.dropout_rate > 0:
