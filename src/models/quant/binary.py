@@ -42,14 +42,14 @@ class Binarize(torch.autograd.function.InplaceFunction):
         return grad_input, None, None, None
 
 
-def binarize(input, quant_mode):
+def binarize(input, quant_mode=QMode.DET):
     return Binarize.apply(input, quant_mode)
 
 
 class Module_Binarize(torch.nn.Module):
     qmode: QMode
 
-    def __init__(self, qmode: QMode):
+    def __init__(self, qmode=QMode.DET):
         super(Module_Binarize, self).__init__()
         self.qmode = qmode
 
