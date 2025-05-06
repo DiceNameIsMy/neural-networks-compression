@@ -1,14 +1,17 @@
+import logging
 import math
 from functools import lru_cache
 
 from pymoo.core.problem import ElementwiseProblem
 
 from src.datasets.dataset import Dataset
-from src.models.mlp import FCLayerParams, MLPParams, evaluate_model
-from src.models.nn import ActivationParams
-from src.models.quant.enums import ActivationModule
+from src.models.mlp import FCLayerParams, FCParams, MLPEvaluator, MLPParams
+from src.models.nn import ActivationParams, NNTrainParams
+from src.models.quant.enums import ActivationModule, WeightQuantMode
 from src.nas.mlp_chromosome import BITWIDTHS_MAPPING, MLPChromosome, RawChromosome
 from src.nas.nas import MlpNasParams
+
+logger = logging.getLogger(__name__)
 
 
 class MlpNasProblem(ElementwiseProblem):
@@ -38,14 +41,12 @@ class MlpNasProblem(ElementwiseProblem):
     def _evaluate(self, x, out, *args, **kwargs):
         ch = RawChromosome(x).parse()
         params = self.get_nn_params(ch)
-        perf = evaluate_model(
-            params,
-            self.train_loader,
-            self.test_loader,
-            times=self.p.amount_of_evaluations,
-            patience=self.p.patience,
+        logger.debug(f"Evaluating {params}")
+
+        performance = MLPEvaluator(params).evaluate_model(
+            times=self.p.amount_of_evaluations
         )
-        accuracy = perf["max"]
+        accuracy = performance["max"]
 
         # Maximize accuracy
         f1 = -self.normalize(accuracy, 0, 100)
@@ -72,41 +73,65 @@ class MlpNasProblem(ElementwiseProblem):
 
     def get_nn_params(self, ch: MLPChromosome) -> MLPParams:
         layers = []
-        layers.append(FCLayerParams(self.dataset.input_size, ch.in_bitwidth))
+        layers.append(
+            FCLayerParams(
+                self.dataset.input_size, WeightQuantMode.NBITS, ch.in_bitwidth
+            )
+        )
         if ch.hidden_layers >= 1:
-            layers.append(FCLayerParams(ch.hidden_height1, ch.hidden_bitwidth1))
+            layers.append(
+                FCLayerParams(
+                    ch.hidden_height1, WeightQuantMode.NBITS, ch.hidden_bitwidth1
+                )
+            )
         if ch.hidden_layers >= 2:
-            layers.append(FCLayerParams(ch.hidden_height2, ch.hidden_bitwidth2))
+            layers.append(
+                FCLayerParams(
+                    ch.hidden_height2, WeightQuantMode.NBITS, ch.hidden_bitwidth2
+                )
+            )
         if ch.hidden_layers >= 3:
-            layers.append(FCLayerParams(ch.hidden_height3, ch.hidden_bitwidth3))
-        layers.append(FCLayerParams(self.dataset.output_size, 32))
+            layers.append(
+                FCLayerParams(
+                    ch.hidden_height3, WeightQuantMode.NBITS, ch.hidden_bitwidth3
+                )
+            )
+        layers.append(FCLayerParams(self.dataset.output_size, WeightQuantMode.NONE, 32))
 
-        return MLPParams(
+        fc_params = FCParams(
             layers=layers,
             activation=ActivationParams(
                 activation=ch.activation,
                 reste_o=ch.reste_o,
                 binary_qmode=ch.quatization_mode,
             ),
+            qmode=ch.quatization_mode,
+            dropout_rate=ch.dropout,
+        )
+        train_params = NNTrainParams(
+            train_loader=self.train_loader,
+            test_loader=self.test_loader,
+            epochs=self.p.epochs,
             learning_rate=ch.learning_rate,
             weight_decay=ch.weight_decay,
-            epochs=self.p.epochs,
-            dropout_rate=ch.dropout,
-            qmode=ch.quatization_mode,
+            early_stop_patience=self.p.patience,
         )
+        return MLPParams(fc=fc_params, train=train_params)
 
     def compute_nn_complexity(self, p: MLPParams) -> float:
         complexity = 0
 
-        prev_layer = p.layers[0]
-        for layer in p.layers[1:]:
+        prev_layer = p.fc.layers[0]
+        for layer in p.fc.layers[1:]:
             mults = prev_layer.height * layer.height
-            bitwidth = prev_layer.bitwidth
+            bitwidth = prev_layer.weight_bitwidth
             complexity += mults * (math.log2(max(2, bitwidth)) * 3)
 
             prev_layer = layer
 
-        activation_coef = 3 if p.activation.activation == ActivationModule.RELU else 1.2
+        activation_coef = (
+            3 if p.fc.activation.activation == ActivationModule.RELU else 1.2
+        )
         complexity *= activation_coef
 
         return complexity

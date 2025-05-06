@@ -3,11 +3,11 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-import torch.optim as optim
-from torch import nn
+from torch import nn, optim
 
-from src.constants import DEVICE, EPOCHS, LEARNING_RATE
-from src.models.mlp import MLPParams
+from src.constants import DEVICE
+from src.models.mlp import FCParams
+from src.models.nn import NNTrainParams
 from src.models.quant import ternarize
 from src.models.quant.common import get_activation_module
 from src.models.quant.conv import WrapperConv2d
@@ -19,43 +19,35 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ConvLayerParams:
-    out_channels: int
+    channels: int
     kernel_size: int
-    stride: int
-    add_pooling: bool
-    pooling_kernel_size: int = 2
+
+    stride: int = 1
+    padding: int = 0
+    dilation: int = 1
+    groups: int = 1
+    bias: bool = True
+
+    pooling_kernel_size: int = 1
+
+    def add_pooling(self):
+        return self.pooling_kernel_size > 1
 
 
 @dataclass
-class CNNParams:
+class ConvParams:
     # Dataset specific params
     in_channels: int
     in_dimensions: int
     in_bitwidth: int
     out_height: int
 
-    conv_layers: list[ConvLayerParams]
-    fc: MLPParams
+    layers: list[ConvLayerParams]
+    activation: ActivationModule
+    qmode: QMode = QMode.DET
 
-    activation: ActivationModule = ActivationModule.BINARIZE
-
-    # Activation specific params
-    reste_o: float = 1.5
-    reste_threshold: float = 1
-    quantization_mode: QMode = QMode.DET
-
+    # Other
     dropout_rate: int = 0.0
-
-    # NN Training params
-    epochs: int = EPOCHS
-    learning_rate: float = LEARNING_RATE
-    weight_decay: float = 0.0  # TODO: Parametrize?
-
-    def __post_init__(self):
-        assert 0 < self.in_channels
-        assert 0 < self.in_bitwidth
-
-        assert len(self.conv_layers) >= 1, "CNN must have at least 1 convolution layer"
 
     def get_conv_layer(self) -> type[WrapperConv2d]:
         match self.activation:
@@ -75,6 +67,14 @@ class CNNParams:
                 )
 
 
+@dataclass
+class CNNParams:
+    conv: ConvParams
+    fc: FCParams
+    train: NNTrainParams
+    in_bitwidth: int = 32
+
+
 class CNN(nn.Module):
     p: CNNParams
 
@@ -84,7 +84,7 @@ class CNN(nn.Module):
 
         # Inputs quantization
         self.in_quantize_layer = (
-            Module_Quantize(p.quantization_mode, p.in_bitwidth)
+            Module_Quantize(QMode.DET, p.in_bitwidth)
             if p.in_bitwidth < 32
             else nn.Identity()
         )
@@ -117,13 +117,17 @@ class CNN(nn.Module):
 
         # Forward pass dummy input through convolutional layers
         dummy_input = torch.zeros(
-            1, self.p.in_channels, self.p.in_dimensions, self.p.in_dimensions
+            1,
+            self.p.conv.in_channels,
+            self.p.conv.in_dimensions,
+            self.p.conv.in_dimensions,
         )
         x = dummy_input
         for layer in self.conv_layers:
             x = layer(x)
+            flattened_size = x.reshape(x.shape[0], -1).size(1)
             logger.info(
-                f"Next layer shape: {x.shape}, which equates to {x.reshape(x.shape[0], -1).size(1)} inputs"
+                f"Next layer shape: {x.shape}, equating to {flattened_size} inputs"
             )
 
         # Flatten the conv output
@@ -134,7 +138,12 @@ class CNN(nn.Module):
     @torch.no_grad()
     def _get_fc_in_height(p: CNNParams, conv_layers: nn.ModuleList) -> int:
         # Forward pass dummy input through convolutional layers
-        dummy_input = torch.zeros(1, p.in_channels, p.in_dimensions, p.in_dimensions)
+        dummy_input = torch.zeros(
+            1,
+            p.conv.in_channels,
+            p.conv.in_dimensions,
+            p.conv.in_dimensions,
+        )
         x = dummy_input
         for layer in conv_layers:
             x = layer(x)
@@ -145,31 +154,34 @@ class CNN(nn.Module):
 
     @classmethod
     def build_conv_layers(cls, p: CNNParams) -> nn.ModuleList:
-        ConvModule = p.get_conv_layer()
+        ConvModule = p.conv.get_conv_layer()
         conv_layers = nn.ModuleList()
 
-        in_channels = p.in_channels
-        for layer_params in p.conv_layers:
+        in_channels = p.conv.in_channels
+        for layer_params in p.conv.layers:
             layers = []
             layers.append(
                 ConvModule(
                     in_channels=in_channels,
-                    out_channels=layer_params.out_channels,
+                    out_channels=layer_params.channels,
                     kernel_size=layer_params.kernel_size,
                     stride=layer_params.stride,
                 )
             )
-            layers.append(nn.BatchNorm2d(layer_params.out_channels))
-            layers.append(get_activation_module(p.activation, p.quantization_mode))
+            layers.append(nn.BatchNorm2d(layer_params.channels))
+            layers.append(get_activation_module(p.conv.activation, p.conv.qmode))
 
             if layer_params.add_pooling:
                 layers.append(
-                    nn.MaxPool2d(kernel_size=layer_params.pooling_kernel_size)
+                    nn.MaxPool2d(
+                        kernel_size=layer_params.pooling_kernel_size,
+                        stride=layer_params.pooling_kernel_size,
+                    )
                 )
 
             conv_layers.append(nn.Sequential(*layers))
 
-            in_channels = layer_params.out_channels
+            in_channels = layer_params.channels
 
         return conv_layers
 
@@ -181,25 +193,21 @@ class CNN(nn.Module):
         layers = []
 
         in_layer = p.fc.layers[0]
-        in_layer.height = fc_in_height  # IMPORTANT: in_height is set by conv layers.
-        if in_layer.bitwidth < 32:
-            layers.append(Module_Quantize(p.fc.qmode, in_layer.bitwidth))
+        in_layer.height = (
+            fc_in_height  # IMPORTANT: in_height is dependant on conv layers.
+        )
 
         last_layer_height = in_layer.height
         for hidden in p.fc.layers[1:-1]:
-            layers.append(nn.Linear(last_layer_height, hidden.height))
+            layers.append(hidden.get_fc_layer(last_layer_height))
             layers.append(nn.BatchNorm1d(hidden.height))
-
-            # Add quantization
-            if hidden.bitwidth < 32:
-                layers.append(Module_Quantize(p.fc.qmode, hidden.bitwidth))
 
             # Add dropout
             if p.fc.dropout_rate > 0:
                 layers.append(nn.Dropout(p.fc.dropout_rate))
 
             # Add activation
-            layers.append(p.fc.get_activation_module())
+            layers.append(p.fc.activation.get_fc_layer_activation())
 
             last_layer_height = hidden.height
 
@@ -209,123 +217,138 @@ class CNN(nn.Module):
         return nn.Sequential(*layers)
 
 
-@torch.no_grad()
-def test_cnn(model, criterion, test_loader, *, print_state=True):
-    model.eval()
+class CNNEvaluator:
+    p: CNNParams
 
-    loss_sum = 0
-    correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(DEVICE), target.to(DEVICE)
-            outputs = model(data)
-            batch_loss = criterion(outputs, target)
-            loss_sum += batch_loss
-            if print_state:
-                logger.info("Test batch loss: " + str(batch_loss))
-
-            _, predicted = torch.max(outputs.data, 1)
-            correct += (predicted == target).sum().item()
-
-    amount_of_batches = len(test_loader)
-    loss = loss_sum / amount_of_batches
-
-    amount_of_datapoints = len(test_loader.dataset)
-    accuracy = 100.0 * correct / amount_of_datapoints
-    if print_state:
-        logger.info(
-            "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)\n".format(
-                loss, correct, amount_of_datapoints, accuracy
-            )
-        )
-
-    return accuracy
-
-
-def train_cnn_epoch(
-    model, optimizer, criterion, train_loader, epoch_no, *, print_state=True
-):
-    model.train()
-
-    loss_sum = 0
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(DEVICE), target.to(DEVICE)
-
-        # Forward pass
-        outputs = model(data)
-        loss = criterion(outputs, target)
-        loss_sum += loss.item()
-
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        if print_state and batch_idx % 5 == 0:
-            trained_on = batch_idx * len(data)
-            logger.info(
-                f"Train Epoch: {epoch_no} [{trained_on}/{len(train_loader.dataset)}] Loss: {loss.item():.4f}"
-            )
-
-    amount_of_batches = len(train_loader)
-    avg_loss = loss_sum / amount_of_batches
-    return avg_loss
-
-
-def test_cnn_model(p: CNNParams, train_loader, test_loader, *, patience=3, verbose=0):
-    model = CNN(p).to(DEVICE)
-    # best_model = copy.deepcopy(model)
+    criterion: nn.CrossEntropyLoss
 
     min_loss = float("inf")
-    best_test_acc = 0
-    without_consecutive_improvements = 0
+    epochs_without_improvements = 0
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=p.learning_rate)
+    def __init__(self, params: CNNParams):
+        self.p = params
+        self.criterion = nn.CrossEntropyLoss()
 
-    for epoch in range(1, p.epochs + 1):
+    def train_model(self, model: CNN):
+        training_log = []
 
-        loss = train_cnn_epoch(
-            model, optimizer, criterion, train_loader, epoch, print_state=(verbose >= 2)
+        # Reset early stopping parameters
+        self.min_loss = float("inf")
+        self.epochs_without_improvements = 0
+
+        # TODO: Can be made customizable
+        optimizer = optim.Adam(
+            model.parameters(),
+            lr=self.p.train.learning_rate,
+            weight_decay=self.p.train.weight_decay,
         )
 
-        # Retain the best accuracy
-        test_acc = test_cnn(model, criterion, test_loader, print_state=(verbose >= 1))
-        if test_acc > best_test_acc:
-            best_test_acc = test_acc
+        # best_model = copy.deepcopy(model)
+        for epoch in range(1, self.p.train.epochs + 1):
+            loss = self.train_epoch(model, optimizer, epoch)
+            accuracy = self.test_model(model)
 
-        # Early stopping
-        if loss < min_loss:
-            min_loss = loss
-            without_consecutive_improvements = 0
+            training_log.append(
+                {
+                    "epoch": epoch,
+                    "loss": loss,
+                    "accuracy": accuracy,
+                }
+            )
+
+            if self.should_stop_early(loss):
+                logger.debug(f"Early stopping triggered after {epoch + 1} epochs")
+                break
+
+        return training_log
+
+    def should_stop_early(self, loss: float) -> bool:
+        if loss < self.min_loss:
+            self.min_loss = loss
+            self.epochs_without_improvements = 0
         else:
-            without_consecutive_improvements += 1
+            self.epochs_without_improvements += 1
 
-        if without_consecutive_improvements >= patience:
-            if verbose >= 1:
-                logger.info(f"Early stopping triggered after {epoch + 1} epochs")
-            break
+        should_stop_early = (
+            self.epochs_without_improvements >= self.p.train.early_stop_patience
+        )
+        return should_stop_early
 
-    return best_test_acc
+    def train_epoch(
+        self,
+        model: CNN,
+        optimizer: optim.Optimizer,
+        epoch_no: int,
+    ) -> float:
+        model.train()
 
+        amount_of_batches = len(self.p.train.train_loader)
+        amount_of_datapoints = len(self.p.train.train_loader.dataset)
 
-def evaluate_cnn_model(p: CNNParams, train_loader, test_loader, *, times=1, verbose=0):
-    try:
-        accuracies = [
-            test_cnn_model(p, train_loader, test_loader, verbose=verbose)
-            for _ in range(times)
-        ]
+        trained_on = 0
+        loss_sum = 0
+        for batch_idx, (data, target) in enumerate(self.p.train.train_loader):
+            data, target = data.to(DEVICE), target.to(DEVICE)
+
+            # Forward pass
+            outputs = model(data)
+            loss = self.criterion(outputs, target)
+            loss_sum += loss.item()
+
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            trained_on += self.p.train.test_loader.batch_size
+            if batch_idx % 5 == 0:
+                logger.debug(
+                    f"Train Epoch: {epoch_no:>2} [{trained_on:>4}/{amount_of_datapoints}] Loss: {loss.item():.4f}"
+                )
+
+        avg_loss = loss_sum / amount_of_batches
+        return avg_loss
+
+    @torch.no_grad()
+    def test_model(self, model: CNN) -> float:
+        model.eval()
+
+        loss_sum = 0
+        correct = 0
+        for data, target in self.p.train.test_loader:
+            data, target = data.to(DEVICE), target.to(DEVICE)
+            outputs = model(data)
+
+            loss = self.criterion(outputs, target)
+            loss_sum += loss
+
+            dim = len(outputs.size()) - 1
+            _, predicted = torch.max(outputs.data, dim=dim)
+            correct += (predicted == target).sum().item()
+
+        amount_of_batches = len(self.p.train.test_loader)
+        average_loss = loss_sum / amount_of_batches
+
+        amount_of_datapoints = len(self.p.train.test_loader.dataset)
+        accuracy = 100.0 * correct / amount_of_datapoints
+
+        logger.debug(
+            "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)".format(
+                average_loss, correct, amount_of_datapoints, accuracy
+            )
+        )
+
+        return accuracy
+
+    def evaluate_model(self, times=1):
+        accuracies = []
+        for _ in range(times):
+            model = CNN(self.p).to(DEVICE)
+            self.train_model(model)
+            accuracies.append(self.test_model(model))
+
         return {
             "max": max(accuracies),
             "mean": np.mean(accuracies),
             "std": np.std(accuracies),
-        }
-    except Exception as e:
-        # Can be useful when conv layer parameters are incompatible
-        logger.info(f"CNN model evaluation with params: {p}")
-        logger.info(f"Failed with error: {e}")
-        return {
-            "max": 0,
-            "mean": 0,
-            "std": 0,
         }

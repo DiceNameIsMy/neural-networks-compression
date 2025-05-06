@@ -2,7 +2,6 @@
 
 import torch
 
-from src.models.quant.binary import binarize
 from src.models.quant.conv import WrapperConv2d
 
 
@@ -88,7 +87,7 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
                 :, :, :, :
             ]  # do ternarization
         elif quan_mode == "BINARY":
-            weight.data[:, :, :, :] = binarize(weight.data.clone().detach())[
+            weight.data[:, :, :, :] = Binarize(weight.data.clone().detach())[
                 :, :, :, :
             ]  # do binarization
         else:
@@ -233,3 +232,17 @@ class Module_Binarize(torch.nn.Module):
 class Module_Ternarize(torch.nn.Module):
     def forward(self, x):
         return Ternarize(x)
+
+
+class TernarizeLinear(torch.nn.Linear):
+    def __init__(self, *kargs, **kwargs):
+        super().__init__(*kargs, **kwargs)
+
+    def forward(self, input):
+        weight_b = Ternarize(self.weight)
+        out = torch.nn.functional.linear(input, weight_b)
+        if self.bias is not None:
+            self.bias.org = self.bias.data.clone()
+            out += self.bias.view(1, -1).expand_as(out)
+
+        return out

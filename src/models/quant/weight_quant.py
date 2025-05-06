@@ -49,3 +49,18 @@ class Module_Quantize(torch.nn.Module):
 
     def forward(self, x):
         return quantize(x, self.qmode, self.num_bits)
+
+
+class QuantizedWeightLinear(torch.nn.Linear):
+    def __init__(self, nbits: int, *kargs, **kwargs):
+        super().__init__(*kargs, **kwargs)
+        self.nbits = nbits
+
+    def forward(self, input):
+        weight_b = quantize(self.weight, QMode.DET, self.nbits)
+        out = torch.nn.functional.linear(input, weight_b)
+        if self.bias is not None:
+            self.bias.org = self.bias.data.clone()
+            out += self.bias.view(1, -1).expand_as(out)
+
+        return out

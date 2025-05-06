@@ -6,6 +6,13 @@ class QMode(enum.Enum):
     STOCH = "stoch"
 
 
+class WeightQuantMode(enum.Enum):
+    NONE = "none"
+    NBITS = "nbits"
+    BINARY = "binary"
+    TERNARY = "ternary"
+
+
 class ActivationModule(enum.Enum):
     RELU = "relu"
     BINARIZE = "binary"
