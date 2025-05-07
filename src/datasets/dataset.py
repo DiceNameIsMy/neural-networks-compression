@@ -13,9 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class Dataset(data.Dataset):
-    input_size: int = None
-    output_size: int = None
-
     def __init__(self, X, y):
         self.X = torch.tensor(X, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.float32)
@@ -27,7 +24,18 @@ class Dataset(data.Dataset):
         return self.X[idx], self.y[idx]
 
     @classmethod
-    def _get_dataloaders(
+    def get_dataloaders(
+        cls, batch_size=BATCH_SIZE
+    ) -> tuple[data.DataLoader, data.DataLoader]:
+        raise NotImplementedError("get_dataloaders is not implemented")
+
+
+class MlpDataset(Dataset):
+    input_size: int = None
+    output_size: int = None
+
+    @classmethod
+    def get_dataloaders_from_xy(
         cls, X, y, batch_size=BATCH_SIZE
     ) -> tuple[data.DataLoader, data.DataLoader]:
         X_train, X_test, y_train, y_test = train_test_split(
@@ -41,11 +49,12 @@ class Dataset(data.Dataset):
         )
         return train_loader, test_loader
 
-    @classmethod
-    def get_dataloaders(
-        cls, batch_size=BATCH_SIZE
-    ) -> tuple[data.DataLoader, data.DataLoader]:
-        raise NotImplementedError("get_dataloaders is not implemented")
+
+class CnnDataset(Dataset):
+    input_channels: int
+    input_dimensions: int
+    input_size: int
+    output_size: int
 
 
 def cache_to_file(name: str, cache_dir=CACHE_FOLDER):

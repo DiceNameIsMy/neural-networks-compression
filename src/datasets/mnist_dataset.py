@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 from torch.utils import data
 
 from src.constants import CACHE_FOLDER
+from src.datasets.dataset import CnnDataset
 
 
 def fetch_mnist_dataset():
@@ -25,21 +26,11 @@ def fetch_mnist_dataset():
     return train_dataset, test_dataset
 
 
-class MNISTDataset(data.Dataset):
+class MNISTDataset(CnnDataset):
     input_channels: int = 1
     input_dimensions: int = 28
     input_size: int = 28 * 28
     output_size: int = 10  # 10 digit classes
-
-    def __init__(self, X, y):
-        self.X = torch.tensor(X, dtype=torch.float32)
-        self.y = torch.tensor(y, dtype=torch.long)
-
-    def __len__(self):
-        return len(self.X)
-
-    def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
 
     @classmethod
     def get_dataloaders(cls, batch_size=256):
@@ -58,37 +49,17 @@ class MNISTDataset(data.Dataset):
         return train_loader, test_loader
 
 
-def fetch_mini_mnist_dataset():
-    full_train_dataset, full_test_dataset = fetch_mnist_dataset()
-
-    # Subset the datasets to return only a small part
-    train_dataset = torch.utils.data.Subset(full_train_dataset, range(4000))
-    test_dataset = torch.utils.data.Subset(full_test_dataset, range(800))
-
-    return train_dataset, test_dataset
-
-
-class MiniMNISTDataset(data.Dataset):
-    input_channels: int = 1
-    input_dimensions: int = 28
-    input_size: int = 28 * 28
-    output_size: int = 10  # 10 digit classes
-
-    def __init__(self, X, y):
-        self.X = torch.tensor(X, dtype=torch.float32)
-        self.y = torch.tensor(y, dtype=torch.long)
-
-    def __len__(self):
-        return len(self.X)
-
-    def __getitem__(self, idx):
-        return self.X[idx], self.y[idx]
+class MiniMNISTDataset(MNISTDataset):
 
     @classmethod
     def get_dataloaders(cls, batch_size=128):
         """Load MNIST dataset and create dataloaders"""
 
-        train_dataset, test_dataset = fetch_mini_mnist_dataset()
+        full_train_dataset, full_test_dataset = fetch_mnist_dataset()
+
+        # Subset the datasets to return only a small part
+        train_dataset = torch.utils.data.Subset(full_train_dataset, range(4000))
+        test_dataset = torch.utils.data.Subset(full_test_dataset, range(800))
 
         # Create dataloaders
         train_loader = data.DataLoader(

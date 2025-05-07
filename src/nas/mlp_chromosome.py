@@ -3,6 +3,17 @@ from dataclasses import dataclass, fields
 import numpy as np
 
 from src.models.quant.enums import ActivationModule, QMode
+from src.nas.chromosome import (
+    ACTIVATION_MAPPING,
+    BITWIDTHS_MAPPING,
+    DROPOUT_MAPPING,
+    LEARNING_RATES_MAPPING,
+    QMODE_MAPPING,
+    RESTE_O_MAPPING,
+    WEIGHT_DECAY_MAPPING,
+)
+
+MLP_HIDDEN_LAYERS_MAPPING = (0, 1, 2, 3)
 
 
 @dataclass
@@ -29,37 +40,15 @@ class MLPChromosome:
     weight_decay: float
 
 
-BITWIDTHS_MAPPING = (1, 2, 3, 4, 5, 6, 7, 8)
-LEARNING_RATES_MAPPING = (
-    0.0001,
-    0.0002,
-    0.0005,
-    0.001,
-    0.002,
-    0.005,
-    0.01,
-)
-WEIGHT_DECAY_MAPPING = (
-    0.01,
-    0.005,
-    0.002,
-    0.001,
-)
-DROPOUT_MAPPING = (0.0, 0.1, 0.2)
-ACTIVATION_MAPPING = tuple(act for act in ActivationModule)
-QMODE_MAPPING = tuple(q for q in QMode)
-RESTE_O_MAPPING = (1.5, 2.0, 3.0, 4.0)
-
-
 @dataclass
-class RawChromosome:
+class RawMLPChromosome:
     x: np.ndarray[int]
 
     def parse(self) -> MLPChromosome:
         x = list(self.x)
         ch = MLPChromosome(
             in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
-            hidden_layers=x.pop(0),
+            hidden_layers=MLP_HIDDEN_LAYERS_MAPPING[x.pop(0)],
             hidden_height1=x.pop(0),
             hidden_bitwidth1=BITWIDTHS_MAPPING[x.pop(0)],
             hidden_height2=x.pop(0),
@@ -68,7 +57,7 @@ class RawChromosome:
             hidden_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
             dropout=DROPOUT_MAPPING[x.pop(0)],
             activation=ACTIVATION_MAPPING[x.pop(0)],
-            reste_o=x.pop(0),
+            reste_o=RESTE_O_MAPPING[x.pop(0)],
             quatization_mode=QMODE_MAPPING[x.pop(0)],
             binarization_mode=QMODE_MAPPING[x.pop(0)],
             learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
@@ -82,7 +71,7 @@ class RawChromosome:
         layer_bitwidth_bounds = (0, len(BITWIDTHS_MAPPING) - 1)
         bounds = (
             layer_bitwidth_bounds,
-            (0, 3),
+            (0, len(MLP_HIDDEN_LAYERS_MAPPING) - 1),
             # Per-hidden layer config
             layer_height_bounds,
             layer_bitwidth_bounds,
@@ -101,7 +90,7 @@ class RawChromosome:
         )
         low, high = np.column_stack(bounds)
 
-        size = RawChromosome.get_size()
+        size = RawMLPChromosome.get_size()
         assert size == len(low)
         assert size == len(high)
 

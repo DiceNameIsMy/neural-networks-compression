@@ -1,15 +1,18 @@
 import logging
 import math
+from dataclasses import asdict
 from functools import lru_cache
 
+import pandas as pd
 from pymoo.core.problem import ElementwiseProblem
+from pymoo.core.result import Result
 
-from src.datasets.dataset import Dataset
+from src.datasets.dataset import MlpDataset
 from src.models.mlp import FCLayerParams, FCParams, MLPEvaluator, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
-from src.nas.mlp_chromosome import BITWIDTHS_MAPPING, MLPChromosome, RawChromosome
-from src.nas.nas import MlpNasParams
+from src.nas.mlp_chromosome import BITWIDTHS_MAPPING, MLPChromosome, RawMLPChromosome
+from src.nas.nas import NasParams
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +26,15 @@ class MlpNasProblem(ElementwiseProblem):
     #       Or perhaps I should keep using both, but then train
     #       the final population again & show best accuracy?
 
-    p: MlpNasParams
-    dataset: Dataset
+    p: NasParams
+    dataset: MlpDataset
     train_loader = None
     test_loader = None
 
-    def __init__(self, params: MlpNasParams, dataset: Dataset):
-        x_low, x_high = RawChromosome.get_bounds()
+    def __init__(self, params: NasParams, dataset: MlpDataset):
+        x_low, x_high = RawMLPChromosome.get_bounds()
         super().__init__(
-            n_var=RawChromosome.get_size(), n_obj=3, xl=x_low, xu=x_high + 0.99
+            n_var=RawMLPChromosome.get_size(), n_obj=3, xl=x_low, xu=x_high + 0.99
         )  # Part of a workaround to the rounding problem
 
         self.p = params
@@ -39,7 +42,7 @@ class MlpNasProblem(ElementwiseProblem):
         self.train_loader, self.test_loader = self.dataset.get_dataloaders()
 
     def _evaluate(self, x, out, *args, **kwargs):
-        ch = RawChromosome(x).parse()
+        ch = RawMLPChromosome(x).parse()
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
@@ -138,16 +141,16 @@ class MlpNasProblem(ElementwiseProblem):
 
     @lru_cache(maxsize=1)
     def get_min_complexity(self) -> float:
-        x = RawChromosome.get_bounds()[0]
-        ch = RawChromosome(x).parse()
+        x = RawMLPChromosome.get_bounds()[0]
+        ch = RawMLPChromosome(x).parse()
         params = self.get_nn_params(ch)
         complexity = self.compute_nn_complexity(params)
         return complexity
 
     @lru_cache(maxsize=1)
     def get_max_complexity(self) -> float:
-        x = RawChromosome.get_bounds()[1]
-        ch = RawChromosome(x).parse()
+        x = RawMLPChromosome.get_bounds()[1]
+        ch = RawMLPChromosome(x).parse()
         params = self.get_nn_params(ch)
         complexity = self.compute_nn_complexity(params)
         return complexity
@@ -169,3 +172,27 @@ class MlpNasProblem(ElementwiseProblem):
             return max
         else:
             return x * (max - min) + min
+
+    def result_as_df(self, res: Result):
+        data = []
+        for i in range(len(res.X)):
+            x = res.X[i]
+            f = res.F[i]
+            accuracy = self.denormalize(-f[0], 0, 100)
+            complexity = self.denormalize(
+                f[1], self.get_min_complexity(), self.get_max_complexity()
+            )
+
+            ch = RawMLPChromosome(x).parse()
+            params = self.get_nn_params(ch)
+
+            data.append(
+                {
+                    "Accuracy": accuracy,
+                    "Complexity": complexity,
+                    **asdict(params),
+                    "Chromosome": x,
+                }
+            )
+
+        return pd.DataFrame(data)

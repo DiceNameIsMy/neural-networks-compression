@@ -38,6 +38,7 @@ def plot_pareto_front(accuracy, cost):
     # Beautify the plot
     max_cost = max(cost)
     plt.ylim(max_cost * 1.1, -(max_cost * 0.1))
+    plt.ticklabel_format(style="plain", axis="y")
 
     accuracy_range = max(accuracy) - min(accuracy)
     plt.xlim(
@@ -49,3 +50,12 @@ def plot_pareto_front(accuracy, cost):
     plt.xlabel("Accuracy")
     plt.grid(True)
     plt.show()
+
+
+def hist_accuracies(accuracies: list[float], bins=20) -> plt.Figure:
+    fig, ax = plt.subplots()
+    ax.hist(accuracies, bins=bins, range=(0, 100), edgecolor="black")
+    ax.set_title("Histogram of Accuracies")
+    ax.set_xlabel("Accuracy")
+    ax.set_ylabel("Frequency")
+    return fig

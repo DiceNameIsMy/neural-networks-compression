@@ -3,7 +3,7 @@ from sklearn import preprocessing
 from ucimlrepo import fetch_ucirepo
 
 from src.constants import BATCH_SIZE
-from src.datasets.dataset import Dataset, cache_to_file
+from src.datasets.dataset import MlpDataset, cache_to_file
 
 
 @cache_to_file(name="breast_cancer")
@@ -106,11 +106,11 @@ breast_cancer_X, breast_cancer_y_df = fetch_breast_cancer_dataset()
 
 
 # https://archive.ics.uci.edu/dataset/14/breast+cancer
-class BreastCancerDataset(Dataset):
+class BreastCancerDataset(MlpDataset):
     input_size: int = len(breast_cancer_X[0])
     output_size: int = breast_cancer_y_df.shape[1]
 
     @classmethod
     def get_dataloaders(cls, batch_size=BATCH_SIZE):
         X, y = breast_cancer_X, np.array(breast_cancer_y_df)
-        return cls._get_dataloaders(X, y, batch_size)
+        return cls.get_dataloaders_from_xy(X, y, batch_size)

@@ -1,7 +1,7 @@
 import numpy as np
 from ucimlrepo import fetch_ucirepo
 
-from src.datasets.dataset import Dataset, cache_to_file
+from src.datasets.dataset import MlpDataset, cache_to_file
 
 
 @cache_to_file(name="vertebral")
@@ -23,10 +23,10 @@ def fetch_vertebral_dataset():
 vertebral_X, vertebral_y = fetch_vertebral_dataset()
 
 
-class VertebralDataset(Dataset):
+class VertebralDataset(MlpDataset):
     input_size: int = len(vertebral_X[0])
     output_size: int = len(vertebral_y[0])
 
     @classmethod
     def get_dataloaders(cls, batch_size=32):
-        return cls._get_dataloaders(vertebral_X, vertebral_y, batch_size)
+        return cls.get_dataloaders_from_xy(vertebral_X, vertebral_y, batch_size)

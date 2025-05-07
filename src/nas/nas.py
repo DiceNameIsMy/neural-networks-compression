@@ -34,7 +34,7 @@ class FloorRepair(Repair):
 
 
 @dataclass
-class MlpNasParams:
+class NasParams:
     epochs: int = EPOCHS
     patience: int = 5
     amount_of_evaluations: int = 1

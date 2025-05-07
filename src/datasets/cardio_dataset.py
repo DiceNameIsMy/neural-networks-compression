@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn import preprocessing
 from ucimlrepo import fetch_ucirepo
 
-from src.datasets.dataset import Dataset, cache_to_file
+from src.datasets.dataset import MlpDataset, cache_to_file
 
 
 @cache_to_file(name="cardio")
@@ -37,10 +37,10 @@ def fetch_cardio_dataset():
 cardio_X, cardio_y = fetch_cardio_dataset()
 
 
-class CardioDataset(Dataset):
+class CardioDataset(MlpDataset):
     input_size: int = len(cardio_X[0])
     output_size: int = len(cardio_y[0])
 
     @classmethod
     def get_dataloaders(cls, batch_size=32):
-        return cls._get_dataloaders(cardio_X, cardio_y, batch_size)
+        return cls.get_dataloaders_from_xy(cardio_X, cardio_y, batch_size)
