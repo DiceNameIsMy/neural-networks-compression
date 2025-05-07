@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 
 from src.constants import EPOCHS, LEARNING_RATE
 from src.models.quant import binary, binary_ReSTE, ternarize
-from src.models.quant.conv import WrapperConv2d
+from src.models.quant.conv import Conv2dWrapper
 from src.models.quant.enums import ActivationModule, QMode
 
 
@@ -34,10 +34,10 @@ class ActivationParams:
                     + f"{self.activation} of type {type(self.activation)}"
                 )
 
-    def get_conv_layer_class(self) -> type[WrapperConv2d]:
+    def get_conv_layer_class(self) -> type[Conv2dWrapper]:
         match self.activation:
             case ActivationModule.RELU:
-                return WrapperConv2d
+                return Conv2dWrapper
             case ActivationModule.BINARIZE:
                 return ternarize.BinaryConv2d
             case ActivationModule.BINARIZE_RESTE:

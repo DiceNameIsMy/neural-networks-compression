@@ -10,7 +10,7 @@ from src.models.mlp import FCParams
 from src.models.nn import NNTrainParams
 from src.models.quant import ternarize
 from src.models.quant.common import get_activation_module
-from src.models.quant.conv import WrapperConv2d
+from src.models.quant.conv import Conv2dWrapper
 from src.models.quant.enums import ActivationModule, QMode
 from src.models.quant.weight_quant import Module_Quantize
 
@@ -49,10 +49,10 @@ class ConvParams:
     # Other
     dropout_rate: int = 0.0
 
-    def get_conv_layer(self) -> type[WrapperConv2d]:
+    def get_conv_module(self) -> type[Conv2dWrapper]:
         match self.activation:
             case ActivationModule.RELU:
-                return WrapperConv2d
+                return Conv2dWrapper
             case ActivationModule.BINARIZE:
                 return ternarize.BinaryConv2d
             case ActivationModule.BINARIZE_RESTE:
@@ -154,7 +154,7 @@ class CNN(nn.Module):
 
     @classmethod
     def build_conv_layers(cls, p: CNNParams) -> nn.ModuleList:
-        ConvModule = p.conv.get_conv_layer()
+        ConvModule = p.conv.get_conv_module()
         conv_layers = nn.ModuleList()
 
         in_channels = p.conv.in_channels
@@ -166,12 +166,16 @@ class CNN(nn.Module):
                     out_channels=layer_params.channels,
                     kernel_size=layer_params.kernel_size,
                     stride=layer_params.stride,
+                    padding=layer_params.padding,
+                    dilation=layer_params.dilation,
+                    groups=layer_params.groups,
+                    bias=layer_params.bias,
                 )
             )
             layers.append(nn.BatchNorm2d(layer_params.channels))
             layers.append(get_activation_module(p.conv.activation, p.conv.qmode))
 
-            if layer_params.add_pooling:
+            if layer_params.add_pooling():
                 layers.append(
                     nn.MaxPool2d(
                         kernel_size=layer_params.pooling_kernel_size,

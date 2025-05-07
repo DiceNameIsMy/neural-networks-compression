@@ -2,7 +2,7 @@
 
 import torch
 
-from src.models.quant.conv import WrapperConv2d
+from src.models.quant.conv import Conv2dWrapper
 
 
 def Alpha(tensor: torch.Tensor, delta):
@@ -152,7 +152,7 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
         )
 
 
-class TernaryConv2d(WrapperConv2d):
+class TernaryConv2d(Conv2dWrapper):
     def __init__(
         self,
         in_channels,
@@ -188,7 +188,7 @@ class TernaryConv2d(WrapperConv2d):
         )
 
 
-class BinaryConv2d(WrapperConv2d):
+class BinaryConv2d(Conv2dWrapper):
     def __init__(
         self,
         in_channels,

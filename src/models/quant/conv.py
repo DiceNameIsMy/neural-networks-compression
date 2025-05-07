@@ -1,17 +1,17 @@
 import torch
 
 
-class WrapperConv2d(torch.nn.Conv2d):
+class Conv2dWrapper(torch.nn.Conv2d):
     def __init__(
         self,
         in_channels,
         out_channels,
         kernel_size,
-        stride=1,
-        padding=0,
-        dilation=1,
-        groups=1,
-        bias=True,
+        stride,
+        padding,
+        dilation,
+        groups,
+        bias,
     ):
         super().__init__(
             in_channels,
