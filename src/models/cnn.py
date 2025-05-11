@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from functools import partial
 
 import numpy as np
 import torch
@@ -8,7 +9,7 @@ from torch import nn, optim
 from src.constants import DEVICE
 from src.models.mlp import FCParams
 from src.models.nn import NNTrainParams
-from src.models.quant import ternarize
+from src.models.quant import binary_ReSTE, ternarize
 from src.models.quant.common import get_activation_module
 from src.models.quant.conv import Conv2dWrapper
 from src.models.quant.enums import ActivationModule, QMode
@@ -44,6 +45,8 @@ class ConvParams:
 
     layers: list[ConvLayerParams]
     activation: ActivationModule
+    reste_threshold: float
+    reste_o: float
     qmode: QMode = QMode.DET
 
     # Other
@@ -56,8 +59,10 @@ class ConvParams:
             case ActivationModule.BINARIZE:
                 return ternarize.BinaryConv2d
             case ActivationModule.BINARIZE_RESTE:
-                raise Exception(
-                    "Binarized ReSTE is not supported for convolution layers yet."
+                return partial(
+                    binary_ReSTE.Binary_ReSTE_Conv2d,
+                    threshold=self.reste_threshold,
+                    o=self.reste_o,
                 )
             case ActivationModule.TERNARIZE:
                 return ternarize.TernaryConv2d

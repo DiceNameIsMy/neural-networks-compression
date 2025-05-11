@@ -6,6 +6,7 @@ ACTIVATION_MAPPING = tuple(act for act in ActivationModule)
 QMODE_MAPPING = tuple(q for q in QMode)
 WEIGHT_QUANT_MODE_MAPPING = tuple(q for q in WeightQuantMode)
 RESTE_O_MAPPING = (1.5, 2.0, 3.0, 4.0)
+RESTE_THRESHOLD_MAPPING = (1.5,)
 
 LEARNING_RATES_MAPPING = (
     0.0001,

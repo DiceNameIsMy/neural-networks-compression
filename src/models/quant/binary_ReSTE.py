@@ -3,6 +3,9 @@
 import math
 
 import torch
+from torch.nn.functional import conv2d
+
+from src.models.quant.conv import Conv2dWrapper
 
 
 class Binarize(torch.autograd.Function):
@@ -65,5 +68,33 @@ class Module_Binarize_ReSTE(torch.nn.Module):
         self.threshold = torch.tensor(threshold).float()
         self.o = torch.tensor(o).float()
 
-    def forward(self, x):
-        return Binarize.apply(x)
+    def forward(self, x: torch.Tensor):
+        return Binarize_ReSTE.apply(x, self.threshold.to(x.device), self.o.to(x.device))
+
+
+class Binary_ReSTE_Conv2d(Conv2dWrapper):
+    def __init__(self, threshold: float = 1.5, o: float = 1, *kargs, **kwargs):
+        super().__init__(*kargs, **kwargs)
+        self.threshold = torch.tensor(threshold).float()
+        self.o = torch.tensor(o).float()
+
+    def forward(self, input):
+        a0 = input
+        w0 = self.weight
+
+        # binarize
+        bw = Binarize_ReSTE().apply(
+            w0, self.threshold.to(w0.device), self.o.to(w0.device)
+        )
+        ba = a0
+
+        # scaling factor
+        scaler = torch.mean(torch.abs(w0), dim=(0, 1, 2, 3), keepdim=True)
+        bw = bw * scaler
+
+        # 1bit conv
+        output = conv2d(
+            ba, bw, self.bias, self.stride, self.padding, self.dilation, self.groups
+        )
+
+        return output

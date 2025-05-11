@@ -10,6 +10,7 @@ from src.nas.chromosome import (
     LEARNING_RATES_MAPPING,
     QMODE_MAPPING,
     RESTE_O_MAPPING,
+    RESTE_THRESHOLD_MAPPING,
     WEIGHT_DECAY_MAPPING,
 )
 
@@ -48,6 +49,7 @@ class CNNChromosome:
 
     activation: ActivationModule
     reste_o: float
+    reste_threshold: float
 
     quatization_mode: QMode
     binarization_mode: QMode
@@ -87,6 +89,7 @@ class RawCNNChromosome:
             dropout=DROPOUT_MAPPING[x.pop(0)],
             activation=ACTIVATION_MAPPING[x.pop(0)],
             reste_o=RESTE_O_MAPPING[x.pop(0)],
+            reste_threshold=RESTE_THRESHOLD_MAPPING[x.pop(0)],
             quatization_mode=QMODE_MAPPING[x.pop(0)],
             binarization_mode=QMODE_MAPPING[x.pop(0)],
             learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
@@ -126,6 +129,7 @@ class RawCNNChromosome:
             (0, len(DROPOUT_MAPPING) - 1),
             (0, len(ACTIVATION_MAPPING) - 1),
             (0, len(RESTE_O_MAPPING) - 1),
+            (0, len(RESTE_THRESHOLD_MAPPING) - 1),
             (0, len(QMODE_MAPPING) - 1),
             (0, len(QMODE_MAPPING) - 1),
             (0, len(LEARNING_RATES_MAPPING) - 1),

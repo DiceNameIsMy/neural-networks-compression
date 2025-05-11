@@ -82,6 +82,8 @@ class CnnNasProblem(ElementwiseProblem):
             layers=conv_layers,
             activation=ch.activation,
             qmode=ch.quatization_mode,
+            reste_threshold=ch.reste_threshold,
+            reste_o=ch.reste_o,
             dropout_rate=ch.dropout,
         )
 
