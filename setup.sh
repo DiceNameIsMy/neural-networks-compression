@@ -1,6 +1,7 @@
 #!/bin/bash
 
 VENV_DIR="venv"
+COMPUTE_PLATFORM_URL="${COMPUTE_PLATFORM_URL:-https://download.pytorch.org/whl/cpu}"
 
 # Check if the virtual environment directory exists
 if [ ! -d "$VENV_DIR" ]; then
@@ -17,7 +18,7 @@ source $VENV_DIR/bin/activate
 # Install the required packages
 pip install --upgrade pip
 pip install -r requirements.txt
-pip install -r pytorch_requirements.txt --index-url https://download.pytorch.org/whl/cpu
-pip install -r colab_requirements.txt
+pip install torch torchvision --index-url $COMPUTE_PLATFORM_URL
+pip install -r colab_requirements.txt  # These requirements are needed in general + in colab notebooks.
 pip install -e .
-echo "Required packages installed from requirements.txt"
+echo "Required packages were installed"
