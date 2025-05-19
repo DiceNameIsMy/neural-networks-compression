@@ -3,7 +3,7 @@ import torchvision
 import torchvision.transforms as transforms
 from torch.utils import data
 
-from src.constants import CACHE_FOLDER
+from src.constants import DATASETS_FOLDER
 from src.datasets.dataset import CnnDataset
 
 
@@ -18,10 +18,10 @@ def fetch_mnist_dataset():
 
     # Load datasets
     train_dataset = torchvision.datasets.MNIST(
-        root=CACHE_FOLDER, train=True, download=True, transform=transform
+        root=DATASETS_FOLDER, train=True, download=True, transform=transform
     )
     test_dataset = torchvision.datasets.MNIST(
-        root=CACHE_FOLDER, train=False, download=True, transform=transform
+        root=DATASETS_FOLDER, train=False, download=True, transform=transform
     )
     return train_dataset, test_dataset
 

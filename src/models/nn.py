@@ -1,12 +1,17 @@
+import os
 from dataclasses import dataclass
+from typing import Generic, TypeVar
 
+import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from src.constants import EPOCHS, LEARNING_RATE
+from src.constants import EPOCHS, LEARNING_RATE, MODELS_FOLDER
 from src.models.quant import binary, binary_ReSTE, ternarize
 from src.models.quant.conv import Conv2dWrapper
 from src.models.quant.enums import ActivationModule, QMode
+
+T = TypeVar("T")
 
 
 @dataclass
@@ -53,11 +58,32 @@ class ActivationParams:
 
 
 @dataclass
-class NNTrainParams:
-    train_loader: DataLoader
-    test_loader: DataLoader
+class NNTrainParams(Generic[T]):
+    train_loader: DataLoader[T]
+    test_loader: DataLoader[T]
 
     epochs: int = EPOCHS
     learning_rate: float = LEARNING_RATE
     weight_decay: float = 0.0
     early_stop_patience: int = 5
+
+
+def save_model(model: torch.nn.Module, filename: str, override: bool = False):
+    if not os.path.exists(MODELS_FOLDER):
+        os.makedirs(MODELS_FOLDER)
+
+    path = os.path.join(MODELS_FOLDER, filename)
+    if os.path.exists(path) and not override:
+        raise Exception(f"File {path} already exists. Unable to store model here.")
+
+    torch.save(model.state_dict(), path)
+
+
+def load_model(model: torch.nn.Module, filename: str):
+    path = os.path.join(MODELS_FOLDER, filename)
+    if not os.path.exists(path):
+        raise Exception(f"Path {path} does not exist")
+
+    model.load_state_dict(torch.load(path))
+    model.eval()  # Set the model to evaluation mode
+    return model

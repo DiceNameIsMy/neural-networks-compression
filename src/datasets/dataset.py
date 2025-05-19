@@ -7,7 +7,7 @@ import torch
 from sklearn.model_selection import train_test_split
 from torch.utils import data
 
-from src.constants import BATCH_SIZE, CACHE_FOLDER, SEED, VALIDATION_SPLIT
+from src.constants import BATCH_SIZE, DATASETS_FOLDER, SEED, VALIDATION_SPLIT
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class CnnDataset(Dataset):
     output_size: int
 
 
-def cache_to_file(name: str, cache_dir=CACHE_FOLDER):
+def cache_to_file(name: str, cache_dir=DATASETS_FOLDER):
     def decorator(func):
 
         @wraps(func)

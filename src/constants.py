@@ -19,5 +19,6 @@ EPOCHS = 20
 
 # Caching
 PROJECT_HOME = os.path.dirname(os.path.dirname(src.__file__))
-CACHE_FOLDER = os.path.join(PROJECT_HOME, "datasets_cache")
+DATASETS_FOLDER = os.path.join(PROJECT_HOME, "datasets_cache")
+MODELS_FOLDER = os.path.join(PROJECT_HOME, "models")
 POPULATION_FOLDER = os.path.join(PROJECT_HOME, "populations")

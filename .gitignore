@@ -1,6 +1,7 @@
 # Project-specific
-datasets_cache/
-populations/
+/datasets_cache/
+/populations/
+/models/
 .vscode/
 .idea/
 

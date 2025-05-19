@@ -50,7 +50,7 @@ class ConvParams:
     qmode: QMode = QMode.DET
 
     # Other
-    dropout_rate: int = 0.0
+    dropout_rate: float = 0.0
 
     def get_conv_module(self) -> type[Conv2dWrapper]:
         match self.activation:
@@ -63,7 +63,7 @@ class ConvParams:
                     binary_ReSTE.Binary_ReSTE_Conv2d,
                     threshold=self.reste_threshold,
                     o=self.reste_o,
-                )
+                )  # type: ignore
             case ActivationModule.TERNARIZE:
                 return ternarize.TernaryConv2d
             case _:
@@ -82,6 +82,8 @@ class CNNParams:
 
 class CNN(nn.Module):
     p: CNNParams
+    conv_layers: nn.ModuleList
+    fc_layers: nn.Sequential
 
     def __init__(self, p: CNNParams):
         super(CNN, self).__init__()
@@ -195,7 +197,7 @@ class CNN(nn.Module):
         return conv_layers
 
     @classmethod
-    def build_fc_layers(cls, p: CNNParams, fc_in_height: int) -> nn.ModuleList:
+    def build_fc_layers(cls, p: CNNParams, fc_in_height: int) -> nn.Sequential:
         if len(p.fc.layers) < 2:
             raise Exception("Model can't have negative less than 2 layers")
 

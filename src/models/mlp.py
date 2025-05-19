@@ -51,7 +51,7 @@ class FCParams:
     qmode: QMode = QMode.DET
 
     # Other
-    dropout_rate: int = 0.0
+    dropout_rate: float = 0.0
 
 
 @dataclass

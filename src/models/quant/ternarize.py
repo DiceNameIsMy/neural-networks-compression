@@ -69,7 +69,7 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
 
     @staticmethod
     def forward(
-        self,
+        ctx,
         input,
         weight: torch.Tensor,
         bias=None,
@@ -79,7 +79,7 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
         groups=1,
         quan_mode="TERNARY",
     ):
-        self.weight_fp32 = (
+        ctx.weight_fp32 = (
             weight.data.clone().detach()
         )  # save a copy of fp32 precision weight
         if quan_mode == "TERNARY":
@@ -93,8 +93,8 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
         else:
             pass
 
-        self.save_for_backward(input, weight, bias)
-        self.stride, self.padding, self.dilation, self.groups = (
+        ctx.save_for_backward(input, weight, bias)
+        ctx.stride, ctx.padding, ctx.dilation, ctx.groups = (
             stride,
             padding,
             dilation,
@@ -113,30 +113,30 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
         return output
 
     @staticmethod
-    def backward(self, grad_output):
+    def backward(ctx, grad_output):
 
-        input, weight, bias = self.saved_tensors
+        input, weight, bias = ctx.saved_tensors
         stride, padding, dilation, groups = (
-            self.stride,
-            self.padding,
-            self.dilation,
-            self.groups,
+            ctx.stride,
+            ctx.padding,
+            ctx.dilation,
+            ctx.groups,
         )
         grad_input = grad_weight = grad_bias = None
         grad_stride = grad_padding = grad_dilation = grad_groups = None
 
-        if self.needs_input_grad[0]:
+        if ctx.needs_input_grad[0]:
             grad_input = torch.nn.grad.conv2d_input(
                 input.shape, weight, grad_output, stride, padding, dilation, groups
             )
-        if self.needs_input_grad[1]:
+        if ctx.needs_input_grad[1]:
             grad_weight = torch.nn.grad.conv2d_weight(
                 input, weight.shape, grad_output, stride, padding, dilation, groups
             )
-        if self.needs_input_grad[2]:
+        if ctx.needs_input_grad[2]:
             grad_bias = grad_output.sum((0, 2, 3), dtype=None, keepdim=False).squeeze(0)
 
-        self.saved_tensors[1].data[:, :, :, :] = self.weight_fp32[
+        ctx.saved_tensors[1].data[:, :, :, :] = ctx.weight_fp32[
             :, :, :, :
         ]  # recover the fp32 precision weight for parameter update
 
