@@ -31,8 +31,8 @@ class Dataset(data.Dataset):
 
 
 class MlpDataset(Dataset):
-    input_size: int = None
-    output_size: int = None
+    input_size: int
+    output_size: int
 
     @classmethod
     def get_dataloaders_from_xy(

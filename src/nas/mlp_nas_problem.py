@@ -6,12 +6,13 @@ from functools import lru_cache
 import pandas as pd
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.core.result import Result
+from torch.utils import data
 
 from src.datasets.dataset import MlpDataset
 from src.models.mlp import FCLayerParams, FCParams, MLPEvaluator, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
-from src.nas.mlp_chromosome import BITWIDTHS_MAPPING, MLPChromosome, RawMLPChromosome
+from src.nas.mlp_chromosome import MLPChromosome, RawMLPChromosome
 from src.nas.nas import NasParams
 
 logger = logging.getLogger(__name__)
@@ -28,13 +29,13 @@ class MlpNasProblem(ElementwiseProblem):
 
     p: NasParams
     dataset: type[MlpDataset]
-    train_loader = None
-    test_loader = None
+    train_loader: data.DataLoader
+    test_loader: data.DataLoader
 
     def __init__(self, params: NasParams, dataset: type[MlpDataset]):
         x_low, x_high = RawMLPChromosome.get_bounds()
         super().__init__(
-            n_var=RawMLPChromosome.get_size(), n_obj=3, xl=x_low, xu=x_high + 0.99
+            n_var=RawMLPChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
         )  # Part of a workaround to the rounding problem
 
         self.p = params
@@ -60,19 +61,7 @@ class MlpNasProblem(ElementwiseProblem):
             complexity, self.get_min_complexity(), self.get_max_complexity()
         )
 
-        # Minimize bitwidth sum
-        low, high = BITWIDTHS_MAPPING[0], BITWIDTHS_MAPPING[-1]
-        bitwidth_sum = ch.in_bitwidth
-        if ch.hidden_layers >= 1:
-            bitwidth_sum += ch.hidden_bitwidth1
-        if ch.hidden_layers >= 2:
-            bitwidth_sum += ch.hidden_bitwidth2
-        if ch.hidden_layers >= 3:
-            bitwidth_sum += ch.hidden_bitwidth3
-
-        f3 = self.normalize(bitwidth_sum, low * 4, high * 4)
-
-        out["F"] = [f1, f2, f3]
+        out["F"] = [f1, f2]
 
     def get_nn_params(self, ch: MLPChromosome) -> MLPParams:
         layers = []

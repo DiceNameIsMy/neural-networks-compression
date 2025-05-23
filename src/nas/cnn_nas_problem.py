@@ -6,13 +6,13 @@ from functools import lru_cache
 import pandas as pd
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.core.result import Result
+from torch.utils import data
 
 from src.datasets.dataset import CnnDataset
 from src.models.cnn import CNNEvaluator, CNNParams, ConvLayerParams, ConvParams
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
-from src.nas.chromosome import BITWIDTHS_MAPPING
 from src.nas.cnn_chromosome import CNNChromosome, RawCNNChromosome
 from src.nas.nas import NasParams
 
@@ -22,13 +22,13 @@ logger = logging.getLogger(__name__)
 class CnnNasProblem(ElementwiseProblem):
     p: NasParams
     dataset: type[CnnDataset]
-    train_loader = None
-    test_loader = None
+    train_loader: data.DataLoader
+    test_loader: data.DataLoader
 
     def __init__(self, params: NasParams, dataset: type[CnnDataset]):
         x_low, x_high = RawCNNChromosome.get_bounds()
         super().__init__(
-            n_var=RawCNNChromosome.get_size(), n_obj=3, xl=x_low, xu=x_high + 0.99
+            n_var=RawCNNChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
         )  # Part of a workaround to the rounding problem
 
         self.p = params
@@ -58,19 +58,7 @@ class CnnNasProblem(ElementwiseProblem):
             complexity, self.get_min_complexity(), self.get_max_complexity()
         )
 
-        # Minimize bitwidth sum
-        low, high = BITWIDTHS_MAPPING[0], BITWIDTHS_MAPPING[-1]
-        bitwidth_sum = ch.in_bitwidth
-        if ch.fc_layers >= 1:
-            bitwidth_sum += ch.fc_bitwidth1
-        if ch.fc_layers >= 2:
-            bitwidth_sum += ch.fc_bitwidth2
-        if ch.fc_layers >= 3:
-            bitwidth_sum += ch.fc_bitwidth3
-
-        f3 = self.normalize(bitwidth_sum, low * 4, high * 4)
-
-        out["F"] = [f1, f2, f3]
+        out["F"] = [f1, f2]
 
     def get_nn_params(self, ch: CNNChromosome) -> CNNParams:
         conv_layers = self._get_conv_layers(ch)
@@ -113,7 +101,7 @@ class CnnNasProblem(ElementwiseProblem):
             in_bitwidth=ch.in_bitwidth,
         )
 
-    def _get_fc_layers(self, ch: CNNChromosome) -> int:
+    def _get_fc_layers(self, ch: CNNChromosome) -> list[FCLayerParams]:
         layers = []
         layers.append(
             FCLayerParams(
@@ -136,7 +124,7 @@ class CnnNasProblem(ElementwiseProblem):
 
         return layers
 
-    def _get_conv_layers(self, ch: CNNChromosome) -> int:
+    def _get_conv_layers(self, ch: CNNChromosome) -> list[ConvLayerParams]:
         layers = []
         if ch.conv_layers >= 1:
             layers.append(
