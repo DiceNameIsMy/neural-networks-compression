@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 class CnnNasProblem(ElementwiseProblem):
     p: NasParams
-    dataset: CnnDataset
+    dataset: type[CnnDataset]
     train_loader = None
     test_loader = None
 
-    def __init__(self, params: NasParams, dataset: CnnDataset):
+    def __init__(self, params: NasParams, dataset: type[CnnDataset]):
         x_low, x_high = RawCNNChromosome.get_bounds()
         super().__init__(
             n_var=RawCNNChromosome.get_size(), n_obj=3, xl=x_low, xu=x_high + 0.99

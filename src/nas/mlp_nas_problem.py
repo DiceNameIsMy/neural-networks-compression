@@ -27,11 +27,11 @@ class MlpNasProblem(ElementwiseProblem):
     #       the final population again & show best accuracy?
 
     p: NasParams
-    dataset: MlpDataset
+    dataset: type[MlpDataset]
     train_loader = None
     test_loader = None
 
-    def __init__(self, params: NasParams, dataset: MlpDataset):
+    def __init__(self, params: NasParams, dataset: type[MlpDataset]):
         x_low, x_high = RawMLPChromosome.get_bounds()
         super().__init__(
             n_var=RawMLPChromosome.get_size(), n_obj=3, xl=x_low, xu=x_high + 0.99

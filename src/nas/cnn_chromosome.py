@@ -60,7 +60,7 @@ class CNNChromosome:
 
 @dataclass
 class RawCNNChromosome:
-    x: np.ndarray[int]
+    x: np.ndarray
 
     def parse(self) -> CNNChromosome:
         x = list(self.x)
@@ -143,5 +143,6 @@ class RawCNNChromosome:
 
         return np.array(low), np.array(high)
 
-    def get_size() -> tuple[np.ndarray, np.ndarray]:
+    @staticmethod
+    def get_size() -> int:
         return len(fields(CNNChromosome))

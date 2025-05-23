@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from matplotlib.figure import Figure
 
 
 def get_pareto_points(x, y):
@@ -21,13 +23,13 @@ def get_pareto_points(x, y):
     return pareto_front
 
 
-def plot_pareto_front(accuracy, cost):
+def plot_pareto_front(accuracy: pd.Series, cost: pd.Series):
     pareto_front = np.array(get_pareto_points(accuracy, cost))
 
     # Plot the data
-    plt.figure(figsize=(10, 6))
-    plt.scatter(accuracy, cost, facecolors="none", edgecolors="blue")
-    plt.plot(
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.scatter(accuracy, cost, facecolors="none", edgecolors="blue")
+    ax.plot(
         pareto_front[:, 0],
         pareto_front[:, 1],
         color="red",
@@ -37,22 +39,22 @@ def plot_pareto_front(accuracy, cost):
 
     # Beautify the plot
     max_cost = max(cost)
-    plt.ylim(max_cost * 1.1, -(max_cost * 0.1))
-    plt.ticklabel_format(style="plain", axis="y")
+    ax.set_ylim(max_cost * 1.1, -(max_cost * 0.1))
+    ax.ticklabel_format(style="plain", axis="y")
 
     accuracy_range = max(accuracy) - min(accuracy)
-    plt.xlim(
+    ax.set_xlim(
         min(accuracy) - (accuracy_range * 0.1), max(accuracy) + (accuracy_range * 0.1)
     )
 
-    plt.title("Pareto Front")
-    plt.ylabel("Cost")
-    plt.xlabel("Accuracy")
-    plt.grid(True)
-    plt.show()
+    ax.set_title("Pareto Front")
+    ax.set_ylabel("Cost")
+    ax.set_xlabel("Accuracy")
+    ax.grid(True)
+    return fig
 
 
-def hist_accuracies(accuracies: list[float], bins=20) -> plt.Figure:
+def hist_accuracies(accuracies: pd.Series, bins=20) -> Figure:
     fig, ax = plt.subplots()
     ax.hist(accuracies, bins=bins, range=(0, 100), edgecolor="black")
     ax.set_title("Histogram of Accuracies")
