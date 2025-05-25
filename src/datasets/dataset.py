@@ -18,7 +18,7 @@ class Dataset(data.Dataset):
 
     def __init__(self, X, y):
         self.X = torch.tensor(X, dtype=torch.float32)
-        self.y = torch.tensor(y, dtype=torch.float32)
+        self.y = torch.tensor(y, dtype=torch.int64)
 
     def __len__(self):
         return len(self.X)
@@ -38,7 +38,7 @@ class Dataset(data.Dataset):
 
     @classmethod
     def get_dataloaders_from_xy(
-        cls, X, y, batch_size: int | None
+        cls, X, y, batch_size: int | None = None
     ) -> tuple[data.DataLoader, data.DataLoader]:
         if batch_size is None:
             batch_size = cls.batch_size

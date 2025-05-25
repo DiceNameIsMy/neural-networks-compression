@@ -37,8 +37,10 @@ class MNISTDataset(CnnDataset):
         """Get MNIST dataset as numpy arrays"""
         train_dataset, test_dataset = fetch_mnist_dataset()
 
-        X = torch.cat((train_dataset.data, test_dataset.data))
-        y = torch.cat((train_dataset.targets, test_dataset.targets))
+        X = torch.cat((train_dataset.data, test_dataset.data)).unsqueeze(1).float()
+        X = transforms.Normalize((0.1307,), (0.3081,))(X)
+
+        y = torch.cat((train_dataset.targets, test_dataset.targets)).int()
         return X, y
 
     @classmethod
@@ -56,15 +58,8 @@ class MNISTDataset(CnnDataset):
 class MiniMNISTDataset(MNISTDataset):
 
     @classmethod
-    def get_dataloaders(cls, batch_size: int | None = None):
-        """Load MNIST dataset and create dataloaders"""
-
-        if batch_size is None:
-            batch_size = cls.batch_size
-
-        X, y = cls.get_xy()
-
+    def get_xy(cls) -> tuple[torch.Tensor, torch.Tensor]:
+        X, y = super().get_xy()
         X = X[:4000]
         y = y[:4000]
-
-        return cls.get_dataloaders_from_xy(X, y, batch_size)
+        return X, y

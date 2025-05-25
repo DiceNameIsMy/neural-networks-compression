@@ -9,7 +9,7 @@ from pymoo.core.result import Result
 from torch.utils import data
 
 from src.datasets.dataset import CnnDataset
-from src.models.cnn import CNNEvaluator, CNNParams, ConvLayerParams, ConvParams
+from src.models.cnn import CNNParams, ConvLayerParams, ConvParams, KFoldCNNEvaluator
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
@@ -41,12 +41,16 @@ class CnnNasProblem(ElementwiseProblem):
         logger.debug(f"Evaluating {params}")
 
         try:
-            performance = CNNEvaluator(params).evaluate_model(
+            performance = KFoldCNNEvaluator(params).evaluate_model(
                 times=self.p.amount_of_evaluations
             )
             accuracy = performance["max"]
         except Exception as e:
-            logger.error(f"Error during evaluation: {e}")
+            logger.error(
+                f"Error during evaluation: {e}",
+                exc_info=True,
+                extra={"chromosome": x, "parsed_chromosome": ch, "nn_params": params},
+            )
             accuracy = 0.0
 
         # Maximize accuracy
