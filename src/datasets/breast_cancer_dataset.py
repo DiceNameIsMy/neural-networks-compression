@@ -2,7 +2,6 @@ import numpy as np
 from sklearn import preprocessing
 from ucimlrepo import fetch_ucirepo
 
-from src.constants import BATCH_SIZE
 from src.datasets.dataset import MlpDataset, cache_to_file
 
 
@@ -111,6 +110,10 @@ class BreastCancerDataset(MlpDataset):
     output_size: int = breast_cancer_y_df.shape[1]
 
     @classmethod
-    def get_dataloaders(cls, batch_size=BATCH_SIZE):
-        X, y = breast_cancer_X, np.array(breast_cancer_y_df)
+    def get_xy(cls) -> tuple[np.ndarray, np.ndarray]:
+        return breast_cancer_X, np.array(breast_cancer_y_df)
+
+    @classmethod
+    def get_dataloaders(cls, batch_size: int | None = None):
+        X, y = cls.get_xy()
         return cls.get_dataloaders_from_xy(X, y, batch_size)

@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sklearn import preprocessing
 from ucimlrepo import fetch_ucirepo
@@ -42,5 +43,10 @@ class CardioDataset(MlpDataset):
     output_size: int = len(cardio_y[0])
 
     @classmethod
-    def get_dataloaders(cls, batch_size=32):
-        return cls.get_dataloaders_from_xy(cardio_X, cardio_y, batch_size)
+    def get_xy(cls) -> tuple[np.ndarray, np.ndarray]:
+        return cardio_X, cardio_y
+
+    @classmethod
+    def get_dataloaders(cls, batch_size: int | None = None):
+        X, y = cls.get_xy()
+        return cls.get_dataloaders_from_xy(X, y, batch_size)

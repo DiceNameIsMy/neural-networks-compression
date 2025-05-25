@@ -1,7 +1,6 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils import data
 
 from src.constants import DATASETS_FOLDER
 from src.datasets.dataset import CnnDataset
@@ -27,46 +26,45 @@ def fetch_mnist_dataset():
 
 
 class MNISTDataset(CnnDataset):
+    batch_size: int = 128
     input_channels: int = 1
     input_dimensions: int = 28
     input_size: int = 28 * 28
     output_size: int = 10  # 10 digit classes
 
     @classmethod
-    def get_dataloaders(cls, batch_size=256):
-        """Load MNIST dataset and create dataloaders"""
-
+    def get_xy(cls) -> tuple[torch.Tensor, torch.Tensor]:
+        """Get MNIST dataset as numpy arrays"""
         train_dataset, test_dataset = fetch_mnist_dataset()
 
-        # Create dataloaders
-        train_loader = data.DataLoader(
-            train_dataset, batch_size=batch_size, shuffle=True
-        )
-        test_loader = data.DataLoader(
-            test_dataset, batch_size=batch_size, shuffle=False
-        )
+        X = torch.cat((train_dataset.data, test_dataset.data))
+        y = torch.cat((train_dataset.targets, test_dataset.targets))
+        return X, y
 
-        return train_loader, test_loader
+    @classmethod
+    def get_dataloaders(cls, batch_size: int | None = None):
+        """Load MNIST dataset and create dataloaders"""
+
+        if batch_size is None:
+            batch_size = cls.batch_size
+
+        X, y = cls.get_xy()
+
+        return cls.get_dataloaders_from_xy(X, y, batch_size)
 
 
 class MiniMNISTDataset(MNISTDataset):
 
     @classmethod
-    def get_dataloaders(cls, batch_size=128):
+    def get_dataloaders(cls, batch_size: int | None = None):
         """Load MNIST dataset and create dataloaders"""
 
-        full_train_dataset, full_test_dataset = fetch_mnist_dataset()
+        if batch_size is None:
+            batch_size = cls.batch_size
 
-        # Subset the datasets to return only a small part
-        train_dataset = torch.utils.data.Subset(full_train_dataset, range(4000))
-        test_dataset = torch.utils.data.Subset(full_test_dataset, range(800))
+        X, y = cls.get_xy()
 
-        # Create dataloaders
-        train_loader = data.DataLoader(
-            train_dataset, batch_size=batch_size, shuffle=True
-        )
-        test_loader = data.DataLoader(
-            test_dataset, batch_size=batch_size, shuffle=False
-        )
+        X = X[:4000]
+        y = y[:4000]
 
-        return train_loader, test_loader
+        return cls.get_dataloaders_from_xy(X, y, batch_size)

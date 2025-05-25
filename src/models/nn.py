@@ -57,6 +57,7 @@ class ActivationParams:
 
 @dataclass
 class NNTrainParams:
+    DatasetCls: type[Dataset]
     train_loader: DataLoader[Dataset]
     test_loader: DataLoader[Dataset]
 

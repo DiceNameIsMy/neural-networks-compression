@@ -21,19 +21,19 @@ logger = logging.getLogger(__name__)
 
 class CnnNasProblem(ElementwiseProblem):
     p: NasParams
-    dataset: type[CnnDataset]
+    DatasetCls: type[CnnDataset]
     train_loader: data.DataLoader
     test_loader: data.DataLoader
 
-    def __init__(self, params: NasParams, dataset: type[CnnDataset]):
+    def __init__(self, params: NasParams, DatasetCls: type[CnnDataset]):
         x_low, x_high = RawCNNChromosome.get_bounds()
         super().__init__(
             n_var=RawCNNChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
         )  # Part of a workaround to the rounding problem
 
         self.p = params
-        self.dataset = dataset
-        self.train_loader, self.test_loader = self.dataset.get_dataloaders()
+        self.DatasetCls = DatasetCls
+        self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders()
 
     def _evaluate(self, x, out, *args, **kwargs):
         ch = RawCNNChromosome(x).parse()
@@ -63,10 +63,10 @@ class CnnNasProblem(ElementwiseProblem):
     def get_nn_params(self, ch: CNNChromosome) -> CNNParams:
         conv_layers = self._get_conv_layers(ch)
         conv_params = ConvParams(
-            in_channels=self.dataset.input_channels,
-            in_dimensions=self.dataset.input_dimensions,
+            in_channels=self.DatasetCls.input_channels,
+            in_dimensions=self.DatasetCls.input_dimensions,
             in_bitwidth=ch.in_bitwidth,
-            out_height=self.dataset.output_size,
+            out_height=self.DatasetCls.output_size,
             layers=conv_layers,
             activation=ch.activation,
             qmode=ch.quatization_mode,
@@ -87,6 +87,7 @@ class CnnNasProblem(ElementwiseProblem):
             dropout_rate=ch.dropout,
         )
         train_params = NNTrainParams(
+            DatasetCls=self.DatasetCls,
             train_loader=self.train_loader,
             test_loader=self.test_loader,
             epochs=self.p.epochs,
@@ -105,7 +106,7 @@ class CnnNasProblem(ElementwiseProblem):
         layers = []
         layers.append(
             FCLayerParams(
-                self.dataset.input_size, WeightQuantMode.NBITS, ch.in_bitwidth
+                self.DatasetCls.input_size, WeightQuantMode.NBITS, ch.in_bitwidth
             )
         )
         if ch.fc_layers >= 1:
@@ -120,7 +121,9 @@ class CnnNasProblem(ElementwiseProblem):
             layers.append(
                 FCLayerParams(ch.fc_height3, WeightQuantMode.NBITS, ch.fc_bitwidth3)
             )
-        layers.append(FCLayerParams(self.dataset.output_size, WeightQuantMode.NONE, 32))
+        layers.append(
+            FCLayerParams(self.DatasetCls.output_size, WeightQuantMode.NONE, 32)
+        )
 
         return layers
 

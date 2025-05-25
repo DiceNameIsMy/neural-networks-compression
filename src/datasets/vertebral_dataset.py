@@ -28,5 +28,10 @@ class VertebralDataset(MlpDataset):
     output_size: int = len(vertebral_y[0])
 
     @classmethod
-    def get_dataloaders(cls, batch_size=32):
-        return cls.get_dataloaders_from_xy(vertebral_X, vertebral_y, batch_size)
+    def get_xy(cls) -> tuple[np.ndarray, np.ndarray]:
+        return vertebral_X, vertebral_y
+
+    @classmethod
+    def get_dataloaders(cls, batch_size: int | None = None):
+        X, y = cls.get_xy()
+        return cls.get_dataloaders_from_xy(X, y, batch_size)

@@ -9,7 +9,13 @@ from pymoo.core.result import Result
 from torch.utils import data
 
 from src.datasets.dataset import MlpDataset
-from src.models.mlp import FCLayerParams, FCParams, MLPEvaluator, MLPParams
+from src.models.mlp import (
+    FCLayerParams,
+    FCParams,
+    KFoldMLPEvaluator,
+    MLPEvaluator,
+    MLPParams,
+)
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
 from src.nas.mlp_chromosome import MLPChromosome, RawMLPChromosome
@@ -28,26 +34,26 @@ class MlpNasProblem(ElementwiseProblem):
     #       the final population again & show best accuracy?
 
     p: NasParams
-    dataset: type[MlpDataset]
+    DatasetCls: type[MlpDataset]
     train_loader: data.DataLoader
     test_loader: data.DataLoader
 
-    def __init__(self, params: NasParams, dataset: type[MlpDataset]):
+    def __init__(self, params: NasParams, DatasetCls: type[MlpDataset]):
         x_low, x_high = RawMLPChromosome.get_bounds()
         super().__init__(
             n_var=RawMLPChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
         )  # Part of a workaround to the rounding problem
 
         self.p = params
-        self.dataset = dataset
-        self.train_loader, self.test_loader = self.dataset.get_dataloaders()
+        self.DatasetCls = DatasetCls
+        self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders()
 
     def _evaluate(self, x, out, *args, **kwargs):
         ch = RawMLPChromosome(x).parse()
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
-        performance = MLPEvaluator(params).evaluate_model(
+        performance = KFoldMLPEvaluator(params).evaluate_model(
             times=self.p.amount_of_evaluations
         )
         accuracy = performance["max"]
@@ -67,7 +73,7 @@ class MlpNasProblem(ElementwiseProblem):
         layers = []
         layers.append(
             FCLayerParams(
-                self.dataset.input_size, WeightQuantMode.NBITS, ch.in_bitwidth
+                self.DatasetCls.input_size, WeightQuantMode.NBITS, ch.in_bitwidth
             )
         )
         if ch.hidden_layers >= 1:
@@ -88,7 +94,9 @@ class MlpNasProblem(ElementwiseProblem):
                     ch.hidden_height3, WeightQuantMode.NBITS, ch.hidden_bitwidth3
                 )
             )
-        layers.append(FCLayerParams(self.dataset.output_size, WeightQuantMode.NONE, 32))
+        layers.append(
+            FCLayerParams(self.DatasetCls.output_size, WeightQuantMode.NONE, 32)
+        )
 
         fc_params = FCParams(
             layers=layers,
@@ -101,6 +109,7 @@ class MlpNasProblem(ElementwiseProblem):
             dropout_rate=ch.dropout,
         )
         train_params = NNTrainParams(
+            DatasetCls=self.DatasetCls,
             train_loader=self.train_loader,
             test_loader=self.test_loader,
             epochs=self.p.epochs,

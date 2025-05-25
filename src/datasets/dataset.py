@@ -2,6 +2,7 @@ import logging
 import os
 import pickle
 from functools import wraps
+from typing import Any
 
 import torch
 from sklearn.model_selection import train_test_split
@@ -13,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 class Dataset(data.Dataset):
+    batch_size = BATCH_SIZE
+
     def __init__(self, X, y):
         self.X = torch.tensor(X, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.float32)
@@ -24,20 +27,22 @@ class Dataset(data.Dataset):
         return self.X[idx], self.y[idx]
 
     @classmethod
+    def get_xy(cls) -> tuple[Any, torch.Tensor]:
+        raise NotImplementedError("get_xy is not implemented")
+
+    @classmethod
     def get_dataloaders(
-        cls, batch_size=BATCH_SIZE
+        cls, batch_size: int | None = None
     ) -> tuple[data.DataLoader, data.DataLoader]:
         raise NotImplementedError("get_dataloaders is not implemented")
 
-
-class MlpDataset(Dataset):
-    input_size: int
-    output_size: int
-
     @classmethod
     def get_dataloaders_from_xy(
-        cls, X, y, batch_size=BATCH_SIZE
+        cls, X, y, batch_size: int | None
     ) -> tuple[data.DataLoader, data.DataLoader]:
+        if batch_size is None:
+            batch_size = cls.batch_size
+
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=VALIDATION_SPLIT, random_state=SEED
         )
@@ -48,6 +53,11 @@ class MlpDataset(Dataset):
             cls(X_test, y_test), batch_size=batch_size, shuffle=False
         )
         return train_loader, test_loader
+
+
+class MlpDataset(Dataset):
+    input_size: int
+    output_size: int
 
 
 class CnnDataset(Dataset):

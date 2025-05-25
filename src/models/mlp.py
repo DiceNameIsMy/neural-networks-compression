@@ -4,9 +4,11 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 import torch.optim as optim
+from sklearn.model_selection import StratifiedKFold
 from torch import nn
+from torch.utils import data
 
-from src.constants import DEVICE
+from src.constants import DEVICE, SEED
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant import binary, ternarize, weight_quant
 from src.models.quant.enums import QMode, WeightQuantMode
@@ -236,4 +238,44 @@ class MLPEvaluator:
             "max": max(accuracies),
             "mean": np.mean(accuracies),
             "std": np.std(accuracies),
+            "accuracies": accuracies,
+        }
+
+
+class KFoldMLPEvaluator:
+    p: MLPParams
+
+    def __init__(self, params: MLPParams):
+        self.p = params
+        self.kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
+
+    def evaluate_model(self, times=1):
+        X, y = self.p.train.DatasetCls.get_xy()
+        y_1d = np.argmax(y, axis=1)
+
+        accuracies = []
+
+        for train_indexes, test_indexes in self.kfold.split(X, y_1d):
+            X_train, y_train = X[train_indexes], y[train_indexes]
+            X_test, y_test = X[test_indexes], y[test_indexes]
+
+            self.p.train.train_loader = data.DataLoader(
+                self.p.train.DatasetCls(X_train, y_train),
+                batch_size=self.p.train.DatasetCls.batch_size,
+                shuffle=True,
+            )
+            self.p.train.test_loader = data.DataLoader(
+                self.p.train.DatasetCls(X_test, y_test),
+                batch_size=self.p.train.DatasetCls.batch_size,
+                shuffle=False,
+            )
+            evaluator = MLPEvaluator(self.p)
+            stats = evaluator.evaluate_model(times)
+            accuracies += stats["accuracies"]
+
+        return {
+            "max": max(accuracies),
+            "mean": np.mean(accuracies),
+            "std": np.std(accuracies),
+            "accuracies": accuracies,
         }
