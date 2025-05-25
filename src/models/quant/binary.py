@@ -8,11 +8,15 @@ from src.models.quant.enums import QMode
 
 class Binarize(torch.autograd.function.InplaceFunction):
     def forward(
-        ctx, input: torch.Tensor, quant_mode=QMode.DET, allow_scale=False, inplace=False
+        self,
+        input: torch.Tensor,
+        quant_mode=QMode.DET,
+        allow_scale=False,
+        inplace=False,
     ):
-        ctx.inplace = inplace
-        if ctx.inplace:
-            ctx.mark_dirty(input)
+        self.inplace = inplace
+        if self.inplace:
+            self.mark_dirty(input)
             output = input
         else:
             output = input.clone()
@@ -36,7 +40,7 @@ class Binarize(torch.autograd.function.InplaceFunction):
             )
         return output
 
-    def backward(ctx, grad_output):
+    def backward(self, grad_output):
         # STE (Straight-Through Estimator)
         grad_input = grad_output
         return grad_input, None, None, None

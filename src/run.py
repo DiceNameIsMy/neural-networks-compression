@@ -9,7 +9,7 @@ from src.datasets.mnist_dataset import MiniMNISTDataset, MNISTDataset
 from src.datasets.vertebral_dataset import VertebralDataset
 from src.nas.cnn_nas_problem import CnnNasProblem
 from src.nas.mlp_nas_problem import MlpNasProblem
-from src.nas.nas import NasParams
+from src.nas.nas_params import NasParams
 from src.nas.plot import hist_accuracies, plot_pareto_front
 
 logger = logging.getLogger(__name__)

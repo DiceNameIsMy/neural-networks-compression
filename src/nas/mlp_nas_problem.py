@@ -13,7 +13,7 @@ from src.models.mlp import FCLayerParams, FCParams, MLPEvaluator, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
 from src.nas.mlp_chromosome import MLPChromosome, RawMLPChromosome
-from src.nas.nas import NasParams
+from src.nas.nas_params import NasParams
 
 logger = logging.getLogger(__name__)
 

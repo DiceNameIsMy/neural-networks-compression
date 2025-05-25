@@ -1,17 +1,15 @@
 import os
 from dataclasses import dataclass
-from typing import Generic, TypeVar
 
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
 from src.constants import EPOCHS, LEARNING_RATE, MODELS_FOLDER
+from src.datasets.dataset import Dataset
 from src.models.quant import binary, binary_ReSTE, ternarize
 from src.models.quant.conv import Conv2dWrapper
 from src.models.quant.enums import ActivationModule, QMode
-
-T = TypeVar("T")
 
 
 @dataclass
@@ -58,9 +56,9 @@ class ActivationParams:
 
 
 @dataclass
-class NNTrainParams(Generic[T]):
-    train_loader: DataLoader[T]
-    test_loader: DataLoader[T]
+class NNTrainParams:
+    train_loader: DataLoader[Dataset]
+    test_loader: DataLoader[Dataset]
 
     epochs: int = EPOCHS
     learning_rate: float = LEARNING_RATE
