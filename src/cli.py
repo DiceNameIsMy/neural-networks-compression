@@ -1,22 +1,17 @@
 import argparse
 import re
 
-from src.datasets.dataset import CnnDataset, MlpDataset
-from src.datasets.mnist_dataset import MiniMNISTDataset, MNISTDataset
-from src.datasets.vertebral_dataset import VertebralDataset
-
-MLP_DATASETS_MAPPING: dict[str, type[MlpDataset]] = {
-    "vertebral": VertebralDataset,
-}
-
-CNN_DATASETS_MAPPING: dict[str, type[CnnDataset]] = {
-    "mnist": MNISTDataset,
-    "mini-mnist": MiniMNISTDataset,
-}
-
-SUPPORTED_DATASETS = list(MLP_DATASETS_MAPPING.keys()) + list(
-    CNN_DATASETS_MAPPING.keys()
-)
+SUPPORTED_DATASETS = [
+    # MLP datasets
+    "vertebral",
+    "cardio",
+    "breast-cancer",
+    # CNN datasets
+    "mnist",
+    "mini-mnist",
+    "cifar10",
+    "mini-cifar10",
+]
 
 
 def is_positive_int(value):
@@ -47,7 +42,7 @@ def parse_args():
         "--dataset",
         choices=SUPPORTED_DATASETS,
         required=True,
-        help="Dataset to use: mnist, mini-mnist, or vertebral",
+        help="Dataset to train on",
     )
     parser.add_argument(
         "-e",
@@ -65,7 +60,7 @@ def parse_args():
         "-o",
         "--output",
         type=is_filename,
-        help="Output filename for results (no path, just filename)",
+        help="Output filename for the resulting population (not path, just filename)",
     )
     parser.add_argument(
         "-g",
@@ -78,13 +73,13 @@ def parse_args():
         "-H",
         "--histogram",
         type=is_filename,
-        help="Output filename for histogram (no path, just filename)",
+        help="Output filename for histogram (not path, just filename)",
     )
     parser.add_argument(
         "-p",
         "--pareto",
         type=is_filename,
-        help="Output filename for pareto front (no path, just filename)",
+        help="Output filename for pareto front (not path, just filename)",
     )
     parser.add_argument(
         "-l",

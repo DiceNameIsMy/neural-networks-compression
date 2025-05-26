@@ -3,8 +3,13 @@ import logging
 import pandas as pd
 from pymoo.optimize import minimize
 
-from src.cli import CNN_DATASETS_MAPPING, MLP_DATASETS_MAPPING
 from src.constants import SEED
+from src.datasets.breast_cancer_dataset import BreastCancerDataset
+from src.datasets.cardio_dataset import CardioDataset
+from src.datasets.cifar10_dataset import CIFAR10Dataset, MiniCIFAR10Dataset
+from src.datasets.dataset import CnnDataset, MlpDataset
+from src.datasets.mnist_dataset import MiniMNISTDataset, MNISTDataset
+from src.datasets.vertebral_dataset import VertebralDataset
 from src.nas.cnn_nas_problem import CnnNasProblem
 from src.nas.mlp_nas_problem import MlpNasProblem
 from src.nas.nas_params import NasParams
@@ -12,8 +17,21 @@ from src.nas.plot import hist_accuracies, plot_pareto_front
 
 logger = logging.getLogger(__name__)
 
+MLP_DATASETS_MAPPING: dict[str, type[MlpDataset]] = {
+    "vertebral": VertebralDataset,
+    "cardio": CardioDataset,
+    "breast-cancer": BreastCancerDataset,
+}
 
-def run_nas_cli(
+CNN_DATASETS_MAPPING: dict[str, type[CnnDataset]] = {
+    "mnist": MNISTDataset,
+    "mini-mnist": MiniMNISTDataset,
+    "cifar10": CIFAR10Dataset,
+    "mini-cifar10": MiniCIFAR10Dataset,
+}
+
+
+def run_nas_pipeline(
     dataset: str,
     epochs: int | None,
     batch_size: int | None,
@@ -22,12 +40,12 @@ def run_nas_cli(
     histogram: str | None,
     pareto: str | None,
 ):
-    # TODO: Use batch_size
     # TODO: Parametrize other parameters too
 
-    if dataset in ["mnist", "mini-mnist"]:
+    if dataset in CNN_DATASETS_MAPPING.keys():
         CnnDatasetClass = CNN_DATASETS_MAPPING[dataset]
         nas_params = NasParams(
+            batch_size=batch_size,
             epochs=epochs or 1,
             patience=5,
             amount_of_evaluations=1,
@@ -39,9 +57,10 @@ def run_nas_cli(
         )
         problem = CnnNasProblem(nas_params, CnnDatasetClass)
 
-    elif dataset in ["vertebral"]:
+    elif dataset in MLP_DATASETS_MAPPING.keys():
         MlpDatasetClass = MLP_DATASETS_MAPPING[dataset]
         nas_params = NasParams(
+            batch_size=batch_size,
             epochs=epochs or 10,
             patience=5,
             amount_of_evaluations=1,
