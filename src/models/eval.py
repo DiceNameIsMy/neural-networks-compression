@@ -13,7 +13,7 @@ from src.models.mlp import MLPParams
 logger = logging.getLogger(__name__)
 
 
-class NNEvaluator:
+class NNArchitectureEvaluator:
     p: MLPParams | CNNParams
 
     criterion: nn.CrossEntropyLoss
@@ -137,30 +137,38 @@ class NNEvaluator:
         return accuracy
 
     def evaluate_model(self, times=1):
+        best_model = None
         accuracies = []
         for _ in range(times):
             model = self.p.get_model().to(DEVICE)
             self.train_model(model)
-            accuracies.append(self.test_model(model))
+
+            acc = self.test_model(model)
+            if best_model is None or acc > max(accuracies):
+                best_model = model
+
+            accuracies.append(acc)
 
         return {
             "max": max(accuracies),
             "mean": np.mean(accuracies),
             "std": np.std(accuracies),
             "accuracies": accuracies,
+            "best_model": best_model,
         }
 
 
-class KFoldNNEvaluator:
+class KFoldNNArchitectureEvaluator:
     p: MLPParams | CNNParams
 
     def __init__(self, params: MLPParams | CNNParams):
         self.p = params
         self.kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
-    def evaluate_model(self, times=1):
+    def evaluate(self, times=1):
         X, y = self.p.train.DatasetCls.get_xy()
 
+        best_model = None
         accuracies = []
 
         for train_indexes, test_indexes in self.kfold.split(X, y):
@@ -177,8 +185,12 @@ class KFoldNNEvaluator:
                 batch_size=self.p.train.batch_size,
                 shuffle=False,
             )
-            evaluator = NNEvaluator(self.p)
+            evaluator = NNArchitectureEvaluator(self.p)
             stats = evaluator.evaluate_model(times)
+
+            if best_model is None or stats["max"] > max(accuracies):
+                best_model = stats["best_model"]
+
             accuracies += stats["accuracies"]
 
         return {
@@ -186,4 +198,5 @@ class KFoldNNEvaluator:
             "mean": np.mean(accuracies),
             "std": np.std(accuracies),
             "accuracies": accuracies,
+            "best_model": best_model,
         }

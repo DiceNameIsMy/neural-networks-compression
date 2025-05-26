@@ -5,6 +5,7 @@ from pymoo.optimize import minimize
 
 from src.constants import SEED
 from src.datasets.dataset import CnnDataset, MlpDataset
+from src.models.nn import save_model
 from src.nas.cnn_nas_problem import CnnNasProblem
 from src.nas.mlp_nas_problem import MlpNasProblem
 from src.nas.nas_params import NasParams
@@ -19,6 +20,7 @@ def run_nas_pipeline(
     batch_size: int | None,
     output_file: str | None,
     generations: int,
+    store_models: bool,
     histogram: str | None,
     pareto: str | None,
 ):
@@ -61,6 +63,16 @@ def run_nas_pipeline(
     logger.info("Starting NAS")
     df = run_nas(problem, nas_params)
     logger.info("NAS has finished")
+
+    if store_models:
+        for chromosome, (accuracy, model) in problem.best_models.items():
+            chromosome_str = "-".join(map(str, chromosome))
+            accuracy_str = str(round(accuracy, 4))
+            save_model(
+                model,
+                f"{problem.DatasetCls.__name__}_{accuracy_str}_{chromosome_str}.pt",
+                override=True,
+            )
 
     if histogram is not None:
         hist_fig = hist_accuracies(df["Accuracy"])

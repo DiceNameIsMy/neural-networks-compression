@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from src.cli import parse_args
 
@@ -20,6 +21,7 @@ def main():
         format="%(asctime)s %(levelname)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
         force=True,
+        stream=sys.stderr,
     )
 
     # Importing pytorch takes some time. It's not always needed because of
@@ -36,6 +38,7 @@ def main():
         batch_size=args.batch_size,
         output_file=args.output,
         generations=args.generations,
+        store_models=args.store_models,
         histogram=args.histogram,
         pareto=args.pareto,
     )

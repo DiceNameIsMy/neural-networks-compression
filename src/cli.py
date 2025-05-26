@@ -57,17 +57,35 @@ def parse_args():
         help="Batch size for training (positive integer)",
     )
     parser.add_argument(
-        "-o",
-        "--output",
-        type=is_filename,
-        help="Output filename for the resulting population (not path, just filename)",
-    )
-    parser.add_argument(
         "-g",
         "--generations",
         type=is_positive_int,
         required=True,
         help="Number of NAS generations (positive integer)",
+    )
+    parser.add_argument(
+        "-p",
+        "--population",
+        type=is_positive_int,
+        help="Population size for NAS (positive integer)",
+    )
+    parser.add_argument(
+        "-o",
+        "--offspring",
+        type=is_positive_int,
+        help="Number of offspring per generation for NAS (positive integer)",
+    )
+    parser.add_argument(
+        "-O",
+        "--output",
+        type=is_filename,
+        help="Output filename for the resulting population (not path, just filename)",
+    )
+    parser.add_argument(
+        "-s",
+        "--store-models",
+        action="store_true",
+        help="Store best models resulting from NAS (default: False)",
     )
     parser.add_argument(
         "-H",
@@ -76,7 +94,7 @@ def parse_args():
         help="Output filename for histogram (not path, just filename)",
     )
     parser.add_argument(
-        "-p",
+        "-P",
         "--pareto",
         type=is_filename,
         help="Output filename for pareto front (not path, just filename)",
@@ -86,20 +104,6 @@ def parse_args():
         "--logging",
         choices=["debug", "info", "warning"],
         default="info",
-        help="Dataset to use: mnist, mini-mnist, or vertebral",
-    )
-
-    parser.add_argument(
-        "-P",
-        "--population",
-        type=is_positive_int,
-        help="Population size for NAS (positive integer)",
-    )
-    parser.add_argument(
-        "-O",  # Uppercase 'O' to avoid conflict with '-o' for output
-        "--offspring",
-        type=is_positive_int,
-        help="Number of offspring per generation for NAS (positive integer)",
     )
 
     args = parser.parse_args()

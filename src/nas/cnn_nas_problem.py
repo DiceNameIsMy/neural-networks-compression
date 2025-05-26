@@ -3,14 +3,15 @@ import math
 from dataclasses import asdict
 from functools import lru_cache
 
+import numpy as np
 import pandas as pd
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.core.result import Result
 from torch.utils import data
 
 from src.datasets.dataset import CnnDataset
-from src.models.cnn import CNNParams, ConvLayerParams, ConvParams
-from src.models.eval import KFoldNNEvaluator
+from src.models.cnn import CNN, CNNParams, ConvLayerParams, ConvParams
+from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
@@ -26,6 +27,17 @@ class CnnNasProblem(ElementwiseProblem):
     train_loader: data.DataLoader
     test_loader: data.DataLoader
 
+    # Used to store best models that appear during NAS.
+    # Key is a tuple of chromosome genes, value is a tuple of (accuracy, CNN model).
+    #
+    # NOTE: A best accuracy is chosen, but due to the training running on varying dataset
+    # subsets, there isn't a guarantee that it's actually the best model.
+    # When comparing 2 models, they could perform good their own subset of data,
+    # but have worse performance on another.
+    #
+    # NOTE: What "Best model" means needs to be clarified...
+    best_models: dict[tuple[int], tuple[float, CNN]]
+
     def __init__(self, params: NasParams, DatasetCls: type[CnnDataset]):
         x_low, x_high = RawCNNChromosome.get_bounds()
         super().__init__(
@@ -37,6 +49,7 @@ class CnnNasProblem(ElementwiseProblem):
         self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders(
             self.p.batch_size
         )
+        self.best_models = {}
 
     def _evaluate(self, x, out, *args, **kwargs):
         ch = RawCNNChromosome(x).parse()
@@ -44,11 +57,15 @@ class CnnNasProblem(ElementwiseProblem):
         logger.debug(f"Evaluating {params}")
 
         try:
-            performance = KFoldNNEvaluator(params).evaluate_model(
+            stats = KFoldNNArchitectureEvaluator(params).evaluate(
                 times=self.p.amount_of_evaluations
             )
-            accuracy = performance["max"]
+            self.try_store_model(x, stats["max"], stats["best_model"])
+
+            accuracy = stats["max"]
+
         except Exception as e:
+            # Sometimes CNN model training can fail due to incompatible genes.
             logger.error(
                 f"Error during evaluation: {e}",
                 exc_info=True,
@@ -66,6 +83,19 @@ class CnnNasProblem(ElementwiseProblem):
         )
 
         out["F"] = [f1, f2]
+
+    def try_store_model(self, x: np.ndarray, accuracy: float, model: CNN):
+        if len(self.best_models) < self.p.population_size:
+            # Store the best model for this chromosome
+            self.best_models[tuple(x)] = (accuracy, model)
+        else:
+            # Replace the worst model if a new one is better
+            worst_key = min(self.best_models, key=lambda k: self.best_models[k][0])
+            worst_key_accuracy = self.best_models[worst_key][0]
+
+            if accuracy > worst_key_accuracy:
+                self.best_models.pop(worst_key)
+                self.best_models[tuple(x)] = (accuracy, model)
 
     def get_nn_params(self, ch: CNNChromosome) -> CNNParams:
         conv_layers = self._get_conv_layers(ch)

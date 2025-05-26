@@ -3,14 +3,15 @@ import math
 from dataclasses import asdict
 from functools import lru_cache
 
+import numpy as np
 import pandas as pd
 from pymoo.core.problem import ElementwiseProblem
 from pymoo.core.result import Result
 from torch.utils import data
 
 from src.datasets.dataset import MlpDataset
-from src.models.eval import KFoldNNEvaluator
-from src.models.mlp import FCLayerParams, FCParams, MLPParams
+from src.models.eval import KFoldNNArchitectureEvaluator
+from src.models.mlp import MLP, FCLayerParams, FCParams, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
 from src.nas.mlp_chromosome import MLPChromosome, RawMLPChromosome
@@ -33,6 +34,8 @@ class MlpNasProblem(ElementwiseProblem):
     train_loader: data.DataLoader
     test_loader: data.DataLoader
 
+    best_models: dict[tuple[int], tuple[float, MLP]]
+
     def __init__(self, params: NasParams, DatasetCls: type[MlpDataset]):
         x_low, x_high = RawMLPChromosome.get_bounds()
         super().__init__(
@@ -44,19 +47,20 @@ class MlpNasProblem(ElementwiseProblem):
         self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders(
             self.p.batch_size
         )
+        self.best_models = {}
 
     def _evaluate(self, x, out, *args, **kwargs):
         ch = RawMLPChromosome(x).parse()
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
-        performance = KFoldNNEvaluator(params).evaluate_model(
+        stats = KFoldNNArchitectureEvaluator(params).evaluate(
             times=self.p.amount_of_evaluations
         )
-        accuracy = performance["max"]
+        self.try_store_model(x, stats["max"], stats["best_model"])
 
         # Maximize accuracy
-        f1 = -self.normalize(accuracy, 0, 100)
+        f1 = -self.normalize(stats["max"], 0, 100)
 
         # Minimize NN complexity
         complexity = self.compute_nn_complexity(params)
@@ -65,6 +69,19 @@ class MlpNasProblem(ElementwiseProblem):
         )
 
         out["F"] = [f1, f2]
+
+    def try_store_model(self, x: np.ndarray, accuracy: float, model: MLP):
+        if len(self.best_models) < self.p.population_size:
+            # Store the best model for this chromosome
+            self.best_models[tuple(x)] = (accuracy, model)
+        else:
+            # Replace the worst model if a new one is better
+            worst_key = min(self.best_models, key=lambda k: self.best_models[k][0])
+            worst_key_accuracy = self.best_models[worst_key][0]
+
+            if accuracy > worst_key_accuracy:
+                self.best_models.pop(worst_key)
+                self.best_models[tuple(x)] = (accuracy, model)
 
     def get_nn_params(self, ch: MLPChromosome) -> MLPParams:
         layers = []

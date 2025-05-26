@@ -1,3 +1,4 @@
+import logging
 import os
 from dataclasses import dataclass
 
@@ -10,6 +11,8 @@ from src.datasets.dataset import Dataset
 from src.models.quant import binary, binary_ReSTE, ternarize
 from src.models.quant.conv import Conv2dWrapper
 from src.models.quant.enums import ActivationModule, QMode
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -77,6 +80,8 @@ def save_model(model: torch.nn.Module, filename: str, override: bool = False):
         raise Exception(f"File {path} already exists. Unable to store model here.")
 
     torch.save(model.state_dict(), path)
+
+    logger.info(f"Model `{filename}` was stored at {path}")
 
 
 def load_model(model: torch.nn.Module, filename: str):
