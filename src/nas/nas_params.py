@@ -1,5 +1,4 @@
 import logging
-
 import os
 from dataclasses import dataclass
 
@@ -36,6 +35,7 @@ class FloorRepair(Repair):
 
 @dataclass
 class NasParams:
+    batch_size: int | None = None
     epochs: int = EPOCHS
     patience: int = 5
     amount_of_evaluations: int = 1

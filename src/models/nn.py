@@ -61,6 +61,7 @@ class NNTrainParams:
     train_loader: DataLoader[Dataset]
     test_loader: DataLoader[Dataset]
 
+    batch_size: int = Dataset.batch_size
     epochs: int = EPOCHS
     learning_rate: float = LEARNING_RATE
     weight_decay: float = 0.0

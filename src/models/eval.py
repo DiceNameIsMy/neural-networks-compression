@@ -169,12 +169,12 @@ class KFoldNNEvaluator:
 
             self.p.train.train_loader = data.DataLoader(
                 self.p.train.DatasetCls(X_train, y_train),
-                batch_size=self.p.train.DatasetCls.batch_size,
+                batch_size=self.p.train.batch_size,
                 shuffle=True,
             )
             self.p.train.test_loader = data.DataLoader(
                 self.p.train.DatasetCls(X_test, y_test),
-                batch_size=self.p.train.DatasetCls.batch_size,
+                batch_size=self.p.train.batch_size,
                 shuffle=False,
             )
             evaluator = NNEvaluator(self.p)

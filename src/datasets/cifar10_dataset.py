@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -6,56 +7,52 @@ from src.constants import DATASETS_FOLDER
 from src.datasets.dataset import CnnDataset
 
 
-def fetch_mnist_dataset():
+def fetch_cifar10_dataset():
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,)),
-            # transforms.Lambda(lambda x: torch.flatten(x, 1)), # Flatten
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ]
     )
 
-    # Load datasets
-    train_dataset = torchvision.datasets.MNIST(
+    train_dataset = torchvision.datasets.CIFAR10(
         root=DATASETS_FOLDER, train=True, download=True, transform=transform
     )
-    test_dataset = torchvision.datasets.MNIST(
+    test_dataset = torchvision.datasets.CIFAR10(
         root=DATASETS_FOLDER, train=False, download=True, transform=transform
     )
     return train_dataset, test_dataset
 
 
-class MNISTDataset(CnnDataset):
+class CIFAR10Dataset(CnnDataset):
     batch_size: int = 128
-    input_channels: int = 1
-    input_dimensions: int = 28
-    input_size: int = 28 * 28
-    output_size: int = 10  # 10 digit classes
+    input_channels: int = 3
+    input_dimensions: int = 32
+    input_size: int = 32 * 32 * 3
+    output_size: int = 10  # 10 classes
 
     @classmethod
     def get_xy(cls) -> tuple[torch.Tensor, torch.Tensor]:
-        """Get MNIST dataset as numpy arrays"""
-        train_dataset, test_dataset = fetch_mnist_dataset()
+        train, test = fetch_cifar10_dataset()
 
-        X = torch.cat((train_dataset.data, test_dataset.data)).unsqueeze(1).float()
-        X = transforms.Normalize((0.1307,), (0.3081,))(X)
+        X = np.concatenate((train.data, test.data))
+        X = torch.tensor(X).permute(0, 3, 1, 2).float() / 255.0
+        X = transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))(X)
 
-        y = torch.cat((train_dataset.targets, test_dataset.targets))
+        y = torch.tensor(np.concatenate((train.targets, test.targets))).int()
+
         return X, y
 
     @classmethod
     def get_dataloaders(cls, batch_size: int | None = None):
-        """Load MNIST dataset and create dataloaders"""
-
         if batch_size is None:
             batch_size = cls.batch_size
 
         X, y = cls.get_xy()
-
         return cls.get_dataloaders_from_xy(X, y, batch_size)
 
 
-class MiniMNISTDataset(MNISTDataset):
+class MiniCIFAR10Dataset(CIFAR10Dataset):
 
     @classmethod
     def get_xy(cls) -> tuple[torch.Tensor, torch.Tensor]:

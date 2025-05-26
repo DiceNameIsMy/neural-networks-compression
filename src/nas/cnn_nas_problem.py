@@ -34,7 +34,9 @@ class CnnNasProblem(ElementwiseProblem):
 
         self.p = params
         self.DatasetCls = DatasetCls
-        self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders()
+        self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders(
+            self.p.batch_size
+        )
 
     def _evaluate(self, x, out, *args, **kwargs):
         ch = RawCNNChromosome(x).parse()
