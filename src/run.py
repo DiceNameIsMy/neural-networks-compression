@@ -4,31 +4,13 @@ import pandas as pd
 from pymoo.optimize import minimize
 
 from src.constants import SEED
-from src.datasets.breast_cancer_dataset import BreastCancerDataset
-from src.datasets.cardio_dataset import CardioDataset
-from src.datasets.cifar10_dataset import CIFAR10Dataset, MiniCIFAR10Dataset
 from src.datasets.dataset import CnnDataset, MlpDataset
-from src.datasets.mnist_dataset import MiniMNISTDataset, MNISTDataset
-from src.datasets.vertebral_dataset import VertebralDataset
 from src.nas.cnn_nas_problem import CnnNasProblem
 from src.nas.mlp_nas_problem import MlpNasProblem
 from src.nas.nas_params import NasParams
 from src.nas.plot import hist_accuracies, plot_pareto_front
 
 logger = logging.getLogger(__name__)
-
-MLP_DATASETS_MAPPING: dict[str, type[MlpDataset]] = {
-    "vertebral": VertebralDataset,
-    "cardio": CardioDataset,
-    "breast-cancer": BreastCancerDataset,
-}
-
-CNN_DATASETS_MAPPING: dict[str, type[CnnDataset]] = {
-    "mnist": MNISTDataset,
-    "mini-mnist": MiniMNISTDataset,
-    "cifar10": CIFAR10Dataset,
-    "mini-cifar10": MiniCIFAR10Dataset,
-}
 
 
 def run_nas_pipeline(
@@ -42,8 +24,10 @@ def run_nas_pipeline(
 ):
     # TODO: Parametrize other parameters too
 
-    if dataset in CNN_DATASETS_MAPPING.keys():
-        CnnDatasetClass = CNN_DATASETS_MAPPING[dataset]
+    CnnDatasetClass = try_get_cnn_dataset(dataset)
+    MlpDatasetClass = try_get_mlp_dataset(dataset)
+
+    if CnnDatasetClass:
         nas_params = NasParams(
             batch_size=batch_size,
             epochs=epochs or 1,
@@ -57,8 +41,7 @@ def run_nas_pipeline(
         )
         problem = CnnNasProblem(nas_params, CnnDatasetClass)
 
-    elif dataset in MLP_DATASETS_MAPPING.keys():
-        MlpDatasetClass = MLP_DATASETS_MAPPING[dataset]
+    elif MlpDatasetClass:
         nas_params = NasParams(
             batch_size=batch_size,
             epochs=epochs or 10,
@@ -88,6 +71,46 @@ def run_nas_pipeline(
         pareto_fig.savefig(pareto)
 
     print(df.to_string(index=False, columns=["Accuracy", "Complexity", "Chromosome"]))
+
+
+def try_get_cnn_dataset(dataset: str) -> type[CnnDataset] | None:
+    match dataset:
+        case "mnist":
+            from src.datasets.mnist_dataset import MNISTDataset
+
+            return MNISTDataset
+        case "mini-mnist":
+            from src.datasets.mnist_dataset import MiniMNISTDataset
+
+            return MiniMNISTDataset
+        case "cifar10":
+            from src.datasets.cifar10_dataset import CIFAR10Dataset
+
+            return CIFAR10Dataset
+        case "mini-cifar10":
+            from src.datasets.cifar10_dataset import MiniCIFAR10Dataset
+
+            return MiniCIFAR10Dataset
+        case _:
+            return None
+
+
+def try_get_mlp_dataset(dataset: str) -> type[MlpDataset] | None:
+    match dataset:
+        case "vertebral":
+            from src.datasets.vertebral_dataset import VertebralDataset
+
+            return VertebralDataset
+        case "cardio":
+            from src.datasets.cardio_dataset import CardioDataset
+
+            return CardioDataset
+        case "breast-cancer":
+            from src.datasets.breast_cancer_dataset import BreastCancerDataset
+
+            return BreastCancerDataset
+        case _:
+            return None
 
 
 def run_nas(

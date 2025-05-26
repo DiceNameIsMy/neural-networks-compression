@@ -74,7 +74,7 @@ class CnnDataset(Dataset):
     output_size: int
 
 
-def cache_to_file(name: str, cache_dir=DATASETS_FOLDER):
+def cache_dataset_to_file(name: str, cache_dir=DATASETS_FOLDER):
     def decorator(func):
 
         @wraps(func)
@@ -88,7 +88,7 @@ def cache_to_file(name: str, cache_dir=DATASETS_FOLDER):
 
             # Load from cache if exists
             if os.path.exists(cache_file):
-                logger.info(f"Loading cached {name} from {cache_file}")
+                logger.info(f"Loading cached dataset `{name}` from {cache_file}")
                 with open(cache_file, "rb") as f:
                     return pickle.load(f)
 
@@ -96,7 +96,7 @@ def cache_to_file(name: str, cache_dir=DATASETS_FOLDER):
 
             # Save to cache
             with open(cache_file, "wb") as f:
-                logger.info(f"Caching {name} to {cache_file}")
+                logger.info(f"Caching `{name}` dataset to {cache_file}")
                 pickle.dump(result, f)
 
             return result

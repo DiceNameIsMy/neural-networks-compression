@@ -1,10 +1,10 @@
 import numpy as np
 from ucimlrepo import fetch_ucirepo
 
-from src.datasets.dataset import MlpDataset, cache_to_file
+from src.datasets.dataset import MlpDataset, cache_dataset_to_file
 
 
-@cache_to_file(name="vertebral")
+@cache_dataset_to_file(name="vertebral")
 def fetch_vertebral_dataset():
     vertebral_column = fetch_ucirepo(id=212)
     vertebral_X = np.array(vertebral_column.data.features)

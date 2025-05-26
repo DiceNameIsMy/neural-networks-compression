@@ -53,9 +53,13 @@ class NasParams:
         if self.population_store_file is not None:
             population = self.load_population(self.population_store_file)
             if population is None:
-                logger.info("Population file is empty. Using random sampling")
+                logger.info(
+                    f"Population file `{self.population_store_file}` is empty. Using random sampling"
+                )
             else:
-                logger.info("Population file loaded successfully")
+                logger.info(
+                    f"Population file loaded from `{self.population_store_file}` successfully"
+                )
                 sampling = population
         else:
             logger.info("No population file provided. Using random sampling")

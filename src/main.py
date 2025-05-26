@@ -1,6 +1,6 @@
 import logging
 
-from src.cli import SUPPORTED_DATASETS, parse_args
+from src.cli import parse_args
 
 
 def main():
@@ -28,8 +28,6 @@ def main():
     # To speed up execution in these cases, we import modules that use
     # them inside the main function; after CLI args are parsed.
 
-    ensure_cli_datasets_are_supported()
-
     from src.run import run_nas_pipeline
 
     run_nas_pipeline(
@@ -41,24 +39,6 @@ def main():
         histogram=args.histogram,
         pareto=args.pareto,
     )
-
-
-def ensure_cli_datasets_are_supported():
-    """
-    Ensure that if a CLI supports a dataset, it really does so.
-    """
-
-    from src.run import CNN_DATASETS_MAPPING, MLP_DATASETS_MAPPING
-
-    mappable_datasets = set(CNN_DATASETS_MAPPING.keys()).union(
-        MLP_DATASETS_MAPPING.keys()
-    )
-
-    for dataset in SUPPORTED_DATASETS:
-        if dataset not in mappable_datasets:
-            raise ValueError(
-                f"Dataset '{dataset}' is supported but not present in any mapping."
-            )
 
 
 if __name__ == "__main__":

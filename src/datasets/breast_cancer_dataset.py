@@ -2,10 +2,10 @@ import numpy as np
 from sklearn import preprocessing
 from ucimlrepo import fetch_ucirepo
 
-from src.datasets.dataset import MlpDataset, cache_to_file
+from src.datasets.dataset import MlpDataset, cache_dataset_to_file
 
 
-@cache_to_file(name="breast_cancer")
+@cache_dataset_to_file(name="breast_cancer")
 def fetch_breast_cancer_dataset():
     breast_cancer = fetch_ucirepo(id=14)
     df = breast_cancer.data.features.copy(deep=True)
