@@ -1,5 +1,4 @@
 import argparse
-import re
 
 SUPPORTED_DATASETS = [
     # MLP datasets
@@ -15,45 +14,43 @@ SUPPORTED_DATASETS = [
 
 
 def is_positive_int(value):
-    ivalue = int(value)
-    if ivalue <= 0:
-        raise argparse.ArgumentTypeError(f"{value} is not a positive integer")
-    return ivalue
+    try:
+        ivalue = int(value)
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError(f"{value} is not a positive integer")
+
+        return ivalue
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{value} is not a valid integer")
 
 
 def is_filename(value):
     # Only allow filenames, not paths
-    if "/" in value or "\\" in value:
+    is_filename = "/" in value or "\\" in value
+    if not is_filename:
         raise argparse.ArgumentTypeError(f"{value} must be a filename, not a path")
-    # Optionally, check for valid filename characters
-    if not re.match(r"^[\w\-.]+$", value):
-        raise argparse.ArgumentTypeError(
-            f"{value} contains invalid filename characters"
-        )
     return value
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Neural Architecture Search CLI for quantized neural networks."
-    )
-    parser.add_argument(
-        "-l",
-        "--logging",
-        choices=["debug", "info", "warning"],
-        default="info",
+        description="Neural Architecture Search CLI for quantized neural networks.",
+        epilog="Example: %(prog)s nas -d vertebral -e 20 -g 10 -p 20 -o 12 -s",
     )
 
     subparsers = parser.add_subparsers(
         title="modes", dest="mode", help="Select a mode to run", required=True
     )
+
     parser_run_nas = subparsers.add_parser(
-        "nas", help="Run NAS pipeline to train models."
+        "nas",
+        help="Run NAS pipeline to train models.",
     )
     configure_nas_mode_parser(parser_run_nas)
 
     parser_export_model = subparsers.add_parser(
-        "export", help="Export a trained model."
+        "export",
+        help="Export a trained model. (TODO)",
     )
     configure_export_model_parser(parser_export_model)
 
@@ -137,6 +134,12 @@ def configure_nas_mode_parser(parser: argparse.ArgumentParser):
         type=is_filename,
         help="Output filename for pareto front (not path, just filename)",
     )
+    parser.add_argument(
+        "-l",
+        "--logging",
+        choices=["debug", "info", "warning"],
+        default="info",
+    )
 
 
 def configure_export_model_parser(parser: argparse.ArgumentParser):
@@ -146,4 +149,10 @@ def configure_export_model_parser(parser: argparse.ArgumentParser):
         type=is_filename,
         required=True,
         help="Filename of the model to export (not path, just filename)",
+    )
+    parser.add_argument(
+        "-l",
+        "--logging",
+        choices=["debug", "info", "warning"],
+        default="info",
     )

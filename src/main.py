@@ -45,9 +45,11 @@ def run_nas_mode(args):
         dataset=args.dataset,
         epochs=args.epochs,
         batch_size=args.batch_size,
-        output_file=args.output,
+        population_size=args.population,
+        offspring_count=args.offspring,
         generations=args.generations,
         store_models=args.store_models,
+        output_file=args.output,
         histogram=args.histogram,
         pareto=args.pareto,
     )
