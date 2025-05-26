@@ -89,5 +89,29 @@ def parse_args():
         help="Dataset to use: mnist, mini-mnist, or vertebral",
     )
 
+    parser.add_argument(
+        "-P",
+        "--population",
+        type=is_positive_int,
+        help="Population size for NAS (positive integer)",
+    )
+    parser.add_argument(
+        "-O",  # Uppercase 'O' to avoid conflict with '-o' for output
+        "--offspring",
+        type=is_positive_int,
+        help="Number of offspring per generation for NAS (positive integer)",
+    )
+
     args = parser.parse_args()
+
+    if args.population and args.offspring:
+        if args.population <= args.offspring:
+            parser.error(
+                "Population size must be greater than the number of offspring."
+            )
+    elif not args.population and args.offspring:
+        parser.error(
+            "Population size must be specified if offspring count is provided."
+        )
+
     return args
