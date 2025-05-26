@@ -9,13 +9,8 @@ from pymoo.core.result import Result
 from torch.utils import data
 
 from src.datasets.dataset import MlpDataset
-from src.models.mlp import (
-    FCLayerParams,
-    FCParams,
-    KFoldMLPEvaluator,
-    MLPEvaluator,
-    MLPParams,
-)
+from src.models.eval import KFoldNNEvaluator
+from src.models.mlp import FCLayerParams, FCParams, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
 from src.nas.mlp_chromosome import MLPChromosome, RawMLPChromosome
@@ -53,7 +48,7 @@ class MlpNasProblem(ElementwiseProblem):
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
-        performance = KFoldMLPEvaluator(params).evaluate_model(
+        performance = KFoldNNEvaluator(params).evaluate_model(
             times=self.p.amount_of_evaluations
         )
         accuracy = performance["max"]

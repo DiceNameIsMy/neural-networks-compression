@@ -9,7 +9,8 @@ from pymoo.core.result import Result
 from torch.utils import data
 
 from src.datasets.dataset import CnnDataset
-from src.models.cnn import CNNParams, ConvLayerParams, ConvParams, KFoldCNNEvaluator
+from src.models.cnn import CNNParams, ConvLayerParams, ConvParams
+from src.models.eval import KFoldNNEvaluator
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant.enums import ActivationModule, WeightQuantMode
@@ -41,7 +42,7 @@ class CnnNasProblem(ElementwiseProblem):
         logger.debug(f"Evaluating {params}")
 
         try:
-            performance = KFoldCNNEvaluator(params).evaluate_model(
+            performance = KFoldNNEvaluator(params).evaluate_model(
                 times=self.p.amount_of_evaluations
             )
             accuracy = performance["max"]

@@ -141,7 +141,7 @@ class RawCNNChromosome:
         assert size == len(low)
         assert size == len(high)
 
-        return np.array(low), np.array(high)
+        return np.array(low, dtype=int), np.array(high, dtype=int)
 
     @staticmethod
     def get_size() -> int:
