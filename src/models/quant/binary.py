@@ -2,7 +2,6 @@
 
 import torch
 
-from src.constants import DEVICE
 from src.models.quant.enums import QMode
 
 
@@ -26,7 +25,7 @@ class Binarize(torch.autograd.function.InplaceFunction):
         if quant_mode == QMode.DET:
             output = output.div(scale).sign().mul(scale)
         else:
-            noise = torch.rand(output.size()).to(DEVICE)
+            noise = torch.rand(output.size()).to(output.device)
             output = (
                 output.div(scale)
                 .add_(1)

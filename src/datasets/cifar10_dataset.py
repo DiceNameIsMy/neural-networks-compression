@@ -29,7 +29,7 @@ class CIFAR10Dataset(CnnDataset):
     input_channels: int = 3
     input_dimensions: int = 32
     input_size: int = 32 * 32 * 3
-    output_size: int = 10  # 10 classes
+    output_size: int = 10
 
     @classmethod
     def get_xy(cls) -> tuple[torch.Tensor, torch.Tensor]:
