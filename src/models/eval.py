@@ -6,7 +6,7 @@ from sklearn.model_selection import StratifiedKFold
 from torch import nn, optim
 from torch.utils import data
 
-from src.constants import DEVICE, SEED
+from src.constants import DATALOADERS_NUM_WORKERS, DEVICE, SEED
 from src.models.cnn import CNNParams
 from src.models.mlp import MLPParams
 
@@ -179,11 +179,13 @@ class KFoldNNArchitectureEvaluator:
                 self.p.train.DatasetCls(X_train, y_train),
                 batch_size=self.p.train.batch_size,
                 shuffle=True,
+                num_workers=DATALOADERS_NUM_WORKERS,
             )
             self.p.train.test_loader = data.DataLoader(
                 self.p.train.DatasetCls(X_test, y_test),
                 batch_size=self.p.train.batch_size,
                 shuffle=False,
+                num_workers=DATALOADERS_NUM_WORKERS,
             )
             evaluator = NNArchitectureEvaluator(self.p)
             stats = evaluator.evaluate_model(times)

@@ -8,7 +8,13 @@ import torch
 from sklearn.model_selection import train_test_split
 from torch.utils import data
 
-from src.constants import BATCH_SIZE, DATASETS_FOLDER, SEED, VALIDATION_SPLIT
+from src.constants import (
+    BATCH_SIZE,
+    DATALOADERS_NUM_WORKERS,
+    DATASETS_FOLDER,
+    SEED,
+    VALIDATION_SPLIT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +60,16 @@ class Dataset(data.Dataset):
             X, y, test_size=VALIDATION_SPLIT, random_state=SEED
         )
         train_loader = data.DataLoader(
-            cls(X_train, y_train), batch_size=batch_size, shuffle=True
+            cls(X_train, y_train),
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=DATALOADERS_NUM_WORKERS,
         )
         test_loader = data.DataLoader(
-            cls(X_test, y_test), batch_size=batch_size, shuffle=False
+            cls(X_test, y_test),
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=DATALOADERS_NUM_WORKERS,
         )
         return train_loader, test_loader
 

@@ -14,6 +14,7 @@ VALIDATION_SPLIT = 0.2
 
 # MLP default values
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DATALOADERS_NUM_WORKERS = 0 if DEVICE.type == "cpu" else 4
 LEARNING_RATE = 0.01
 EPOCHS = 20
 
