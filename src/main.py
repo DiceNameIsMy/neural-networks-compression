@@ -24,11 +24,20 @@ def main():
         stream=sys.stderr,
     )
 
+    if args.mode == "nas":
+        run_nas_mode(args)
+    elif args.mode == "export":
+        export_model_mode(args)
+    else:
+        raise ValueError(f"Unknown mode: {args.mode}. Expected 'nas' or 'export'.")
+
+
+def run_nas_mode(args):
     # Importing pytorch takes some time. It's not always needed because of
     # --help or invalid arguments.
     #
     # To speed up execution in these cases, we import modules that use
-    # them inside the main function; after CLI args are parsed.
+    # them inside this function; after CLI args are parsed.
 
     from src.run import run_nas_pipeline
 
@@ -42,6 +51,20 @@ def main():
         histogram=args.histogram,
         pareto=args.pareto,
     )
+
+
+def export_model_mode(args):
+    filename: str = args.filename
+    dataset, accuracy, chromosome = filename.strip(".pth").strip(".pt").split("_")
+    logging.info(
+        f"Exporting model for dataset={dataset}, "
+        f"accuracy={accuracy}, chromosome={chromosome}"
+    )
+    # TODO: Read the stored model
+    # TODO: Instantiate a model from the chromosome & dataset.
+    #       Probably use a proper NAS problem there a corresponding method is defined.
+    # TODO: Export the model somehow?
+    pass
 
 
 if __name__ == "__main__":

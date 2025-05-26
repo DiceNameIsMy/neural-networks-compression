@@ -38,6 +38,44 @@ def parse_args():
         description="Neural Architecture Search CLI for quantized neural networks."
     )
     parser.add_argument(
+        "-l",
+        "--logging",
+        choices=["debug", "info", "warning"],
+        default="info",
+    )
+
+    subparsers = parser.add_subparsers(
+        title="modes", dest="mode", help="Select a mode to run", required=True
+    )
+    parser_run_nas = subparsers.add_parser(
+        "nas", help="Run NAS pipeline to train models."
+    )
+    configure_nas_mode_parser(parser_run_nas)
+
+    parser_export_model = subparsers.add_parser(
+        "export", help="Export a trained model."
+    )
+    configure_export_model_parser(parser_export_model)
+
+    args = parser.parse_args()
+
+    # Extra validation
+    if args.mode == "nas":
+        if args.population and args.offspring:
+            if args.population <= args.offspring:
+                parser.error(
+                    "Population size must be greater than the number of offspring."
+                )
+        elif not args.population and args.offspring:
+            parser.error(
+                "Population size must be specified if offspring count is provided."
+            )
+
+    return args
+
+
+def configure_nas_mode_parser(parser: argparse.ArgumentParser):
+    parser.add_argument(
         "-d",
         "--dataset",
         choices=SUPPORTED_DATASETS,
@@ -99,23 +137,13 @@ def parse_args():
         type=is_filename,
         help="Output filename for pareto front (not path, just filename)",
     )
+
+
+def configure_export_model_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
-        "-l",
-        "--logging",
-        choices=["debug", "info", "warning"],
-        default="info",
+        "-f",
+        "--filename",
+        type=is_filename,
+        required=True,
+        help="Filename of the model to export (not path, just filename)",
     )
-
-    args = parser.parse_args()
-
-    if args.population and args.offspring:
-        if args.population <= args.offspring:
-            parser.error(
-                "Population size must be greater than the number of offspring."
-            )
-    elif not args.population and args.offspring:
-        parser.error(
-            "Population size must be specified if offspring count is provided."
-        )
-
-    return args

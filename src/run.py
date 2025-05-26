@@ -66,13 +66,14 @@ def run_nas_pipeline(
 
     if store_models:
         for chromosome, (accuracy, model) in problem.best_models.items():
-            chromosome_str = "-".join(map(str, chromosome))
-            accuracy_str = str(round(accuracy, 4))
-            save_model(
-                model,
-                f"{problem.DatasetCls.__name__}_{accuracy_str}_{chromosome_str}.pt",
-                override=True,
-            )
+            if chromosome in map(tuple, df["Chromosome"].values):
+                chromosome_str = "-".join(map(str, chromosome))
+                accuracy_str = str(round(accuracy, 4))
+                save_model(
+                    model,
+                    f"{problem.DatasetCls.__name__}_{accuracy_str}_{chromosome_str}.pt",
+                    override=True,
+                )
 
     if histogram is not None:
         hist_fig = hist_accuracies(df["Accuracy"])
