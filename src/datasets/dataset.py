@@ -17,8 +17,15 @@ class Dataset(data.Dataset):
     batch_size = BATCH_SIZE
 
     def __init__(self, X, y):
-        self.X = torch.tensor(X, dtype=torch.float32)
-        self.y = torch.tensor(y, dtype=torch.long)
+        if isinstance(X, torch.Tensor):
+            self.X = X.float()
+        else:
+            self.X = torch.tensor(X, dtype=torch.float32)
+
+        if isinstance(y, torch.Tensor):
+            self.y = y.long()
+        else:
+            self.y = torch.tensor(y, dtype=torch.long)
 
     def __len__(self):
         return len(self.X)
