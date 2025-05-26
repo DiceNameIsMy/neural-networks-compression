@@ -3,25 +3,14 @@ import logging
 import pandas as pd
 from pymoo.optimize import minimize
 
+from src.cli import CNN_DATASETS_MAPPING, MLP_DATASETS_MAPPING
 from src.constants import SEED
-from src.datasets.dataset import CnnDataset, MlpDataset
-from src.datasets.mnist_dataset import MiniMNISTDataset, MNISTDataset
-from src.datasets.vertebral_dataset import VertebralDataset
 from src.nas.cnn_nas_problem import CnnNasProblem
 from src.nas.mlp_nas_problem import MlpNasProblem
 from src.nas.nas_params import NasParams
 from src.nas.plot import hist_accuracies, plot_pareto_front
 
 logger = logging.getLogger(__name__)
-
-mlp_datasets_mapping: dict[str, type[MlpDataset]] = {
-    "vertebral": VertebralDataset,
-}
-
-cnn_datasets_mapping: dict[str, type[CnnDataset]] = {
-    "mnist": MNISTDataset,
-    "mini-mnist": MiniMNISTDataset,
-}
 
 
 def run_nas_cli(
@@ -37,7 +26,7 @@ def run_nas_cli(
     # TODO: Parametrize other parameters too
 
     if dataset in ["mnist", "mini-mnist"]:
-        CnnDatasetClass = cnn_datasets_mapping[dataset]
+        CnnDatasetClass = CNN_DATASETS_MAPPING[dataset]
         nas_params = NasParams(
             epochs=epochs or 1,
             patience=5,
@@ -51,7 +40,7 @@ def run_nas_cli(
         problem = CnnNasProblem(nas_params, CnnDatasetClass)
 
     elif dataset in ["vertebral"]:
-        MlpDatasetClass = mlp_datasets_mapping[dataset]
+        MlpDatasetClass = MLP_DATASETS_MAPPING[dataset]
         nas_params = NasParams(
             epochs=epochs or 10,
             patience=5,
