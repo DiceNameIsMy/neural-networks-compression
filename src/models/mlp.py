@@ -206,12 +206,14 @@ class MLPEvaluator:
         correct = 0
         for data, target in self.p.train.test_loader:
             data, target = data.to(DEVICE), target.to(DEVICE)
-            outputs = model(data)
+            outputs: torch.Tensor = model(data)
+
             loss = self.criterion(outputs, target)
             loss_sum += loss
 
-            pred = outputs.argmax(dim=1)  # get the index of the max log-probability
-            correct += pred.eq(target.argmax(dim=1)).sum().item()
+            dim = len(outputs.size()) - 1
+            pred = outputs.argmax(dim=dim)  # get the index of the max log-probability
+            correct += (pred == target).sum().item()
 
         amount_of_batches = len(self.p.train.test_loader)
         average_loss = loss_sum / amount_of_batches
@@ -243,6 +245,12 @@ class MLPEvaluator:
 
 
 class KFoldMLPEvaluator:
+    """
+    Evaluates MLP model using K-Fold cross-validation.
+
+    Given the same dataset, splits will be the same on each run, since the SEED is fixed.
+    """
+
     p: MLPParams
 
     def __init__(self, params: MLPParams):
@@ -251,11 +259,10 @@ class KFoldMLPEvaluator:
 
     def evaluate_model(self, times=1):
         X, y = self.p.train.DatasetCls.get_xy()
-        y_1d = np.argmax(y, axis=1)
 
         accuracies = []
 
-        for train_indexes, test_indexes in self.kfold.split(X, y_1d):
+        for train_indexes, test_indexes in self.kfold.split(X, y):
             X_train, y_train = X[train_indexes], y[train_indexes]
             X_test, y_test = X[test_indexes], y[test_indexes]
 

@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from sklearn import preprocessing
 from ucimlrepo import fetch_ucirepo
 
@@ -24,13 +23,7 @@ def fetch_cardio_dataset():
 
     # Prepare targets
     cardio_y_df = cardio.data.targets
-    cardio_class_y_df = cardio_y_df[["CLASS"]]
-
-    oh = preprocessing.OneHotEncoder(sparse_output=False)
-    new_features = oh.fit_transform(cardio_class_y_df[["CLASS"]])
-    new_features_names = oh.get_feature_names_out()
-
-    cardio_class_y = pd.DataFrame(new_features, columns=new_features_names).values
+    cardio_class_y = cardio_y_df["CLASS"].astype("category").cat.codes.values
 
     return cardio_X, cardio_class_y
 
@@ -40,7 +33,7 @@ cardio_X, cardio_y = fetch_cardio_dataset()
 
 class CardioDataset(MlpDataset):
     input_size: int = len(cardio_X[0])
-    output_size: int = len(cardio_y[0])
+    output_size: int = len(np.unique(cardio_y))
 
     @classmethod
     def get_xy(cls) -> tuple[np.ndarray, np.ndarray]:

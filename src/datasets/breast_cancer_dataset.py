@@ -89,29 +89,21 @@ def fetch_breast_cancer_dataset():
     )
     breast_cancer_X = preprocessing.normalize(breast_cancer_X)
 
-    # Convert target
-    breast_cancer_y_df = y_df.copy(deep=True)
-    oh = preprocessing.OneHotEncoder(sparse_output=False)
-    new_target = oh.fit_transform(breast_cancer_y_df[["Class"]])
-    new_target_names = oh.get_feature_names_out()
-
-    breast_cancer_y_df[new_target_names] = new_target
-    breast_cancer_y_df.drop(columns=["Class"], inplace=True)
-
-    return breast_cancer_X, breast_cancer_y_df.values
+    breast_cancer_y = y_df["Class"].astype("category").cat.codes.values
+    return breast_cancer_X, breast_cancer_y
 
 
-breast_cancer_X, breast_cancer_y_df = fetch_breast_cancer_dataset()
+breast_cancer_X, breast_cancer_y = fetch_breast_cancer_dataset()
 
 
 # https://archive.ics.uci.edu/dataset/14/breast+cancer
 class BreastCancerDataset(MlpDataset):
     input_size: int = len(breast_cancer_X[0])
-    output_size: int = breast_cancer_y_df.shape[1]
+    output_size: int = len(np.unique(breast_cancer_y))
 
     @classmethod
     def get_xy(cls) -> tuple[np.ndarray, np.ndarray]:
-        return breast_cancer_X, np.array(breast_cancer_y_df)
+        return breast_cancer_X, breast_cancer_y
 
     @classmethod
     def get_dataloaders(cls, batch_size: int | None = None):

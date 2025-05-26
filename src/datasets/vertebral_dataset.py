@@ -10,12 +10,10 @@ def fetch_vertebral_dataset():
     vertebral_X = np.array(vertebral_column.data.features)
 
     vertebral_y_class = vertebral_column.data.targets["class"]
-    vertebral_y = np.zeros(
-        (len(vertebral_y_class), len(vertebral_y_class.unique())), dtype=int
-    )
-    vertebral_y[vertebral_y_class == "Hernia", 0] = 1
-    vertebral_y[vertebral_y_class == "Spondylolisthesis", 1] = 1
-    vertebral_y[vertebral_y_class == "Normal", 2] = 1
+    vertebral_y = np.zeros(len(vertebral_y_class), dtype=int)
+    vertebral_y[vertebral_y_class == "Hernia"] = 0
+    vertebral_y[vertebral_y_class == "Spondylolisthesis"] = 1
+    vertebral_y[vertebral_y_class == "Normal"] = 2
 
     return vertebral_X, vertebral_y
 
@@ -25,7 +23,7 @@ vertebral_X, vertebral_y = fetch_vertebral_dataset()
 
 class VertebralDataset(MlpDataset):
     input_size: int = len(vertebral_X[0])
-    output_size: int = len(vertebral_y[0])
+    output_size: int = len(np.unique(vertebral_y))
 
     @classmethod
     def get_xy(cls) -> tuple[np.ndarray, np.ndarray]:

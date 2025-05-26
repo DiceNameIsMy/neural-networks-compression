@@ -336,8 +336,8 @@ class CNNEvaluator:
             loss_sum += loss
 
             dim = len(outputs.size()) - 1
-            _, predicted = torch.max(outputs.data, dim=dim)
-            correct += (predicted == target).sum().item()
+            pred = outputs.argmax(dim=dim)
+            correct += (pred == target).sum().item()
 
         amount_of_batches = len(self.p.train.test_loader)
         average_loss = loss_sum / amount_of_batches

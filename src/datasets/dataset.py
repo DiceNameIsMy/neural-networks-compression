@@ -66,6 +66,10 @@ class CnnDataset(Dataset):
     input_size: int
     output_size: int
 
+    def __init__(self, X, y):
+        self.X = torch.tensor(X, dtype=torch.float32)
+        self.y = torch.tensor(y, dtype=torch.int64)
+
 
 def cache_to_file(name: str, cache_dir=DATASETS_FOLDER):
     def decorator(func):
