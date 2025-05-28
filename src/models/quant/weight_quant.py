@@ -8,11 +8,11 @@ from src.models.quant.enums import QMode
 
 class Quantize(torch.autograd.function.InplaceFunction):
     def forward(
-        ctx, input: torch.Tensor, quant_mode=QMode.DET, numBits=4, inplace=False
+        self, input: torch.Tensor, quant_mode=QMode.DET, numBits=4, inplace=False
     ):
-        ctx.inplace = inplace
-        if ctx.inplace:
-            ctx.mark_dirty(input)
+        self.inplace = inplace
+        if self.inplace:
+            self.mark_dirty(input)
             output = input
         else:
             output = input.clone()
@@ -61,6 +61,17 @@ class QuantizedWeightLinear(torch.nn.Linear):
         out = torch.nn.functional.linear(input, weight_b)
         if self.bias is not None:
             self.bias.org = self.bias.data.clone()
-            out += self.bias.view(1, -1).expand_as(out)
+            bias_b = self.bias.view(1, -1).expand_as(out)
+            bias_b2 = quantize(self.bias, QMode.DET, self.nbits)
+            out += bias_b
 
         return out
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"in_features={self.in_features}, "
+            f"out_features={self.out_features}, "
+            f"nbits={self.nbits}, "
+            f"bias={self.bias is not None})"
+        )

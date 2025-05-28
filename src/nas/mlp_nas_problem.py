@@ -25,9 +25,13 @@ class MlpNasProblem(ElementwiseProblem):
     #       I only have 2 objectives -> there isn't space for
     #       many distinct solutions. It that okay?
 
-    # TODO: It it better to use best accuracy instead of mean accuracy as an optimization goal?
-    #       Or perhaps I should keep using both, but then train
-    #       the final population again & show best accuracy?
+    # TODO: It it better to use best accuracy instead of mean
+    #       accuracy as an optimization goal? Or perhaps I should
+    #       keep using both, but then train the final population
+    #       again & show best accuracy?
+
+    # NOTE: On every evaluation a new set of dataloaders is created.
+    #       It's reduntant, although only a small % of NAS is spent on that.
 
     p: NasParams
     DatasetCls: type[MlpDataset]

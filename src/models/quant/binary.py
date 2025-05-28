@@ -59,6 +59,9 @@ class Module_Binarize(torch.nn.Module):
     def forward(self, x):
         return binarize(x, self.qmode)
 
+    def __repr__(self):
+        return f"Module_Binarize(qmode={self.qmode})"
+
 
 class BinarizeLinear(torch.nn.Linear):
 
@@ -73,3 +76,11 @@ class BinarizeLinear(torch.nn.Linear):
             out += self.bias.view(1, -1).expand_as(out)
 
         return out
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}("
+            f"in_features={self.in_features}, "
+            f"out_features={self.out_features}, "
+            f"bias={self.bias is not None})"
+        )
