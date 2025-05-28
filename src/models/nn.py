@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class ActivationParams:
     activation: ActivationModule
     binary_qmode: QMode = QMode.DET
-    reste_o: float = 1
+    reste_o: float = 3
     reste_threshold: float = 1.5
 
     def get_fc_layer_activation(self):
