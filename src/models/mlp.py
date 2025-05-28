@@ -82,7 +82,7 @@ class MLP(nn.Module):
                 layers.append(nn.Dropout(p.fc.dropout_rate))
 
             # Add activation
-            layers.append(p.fc.activation.get_fc_layer_activation())
+            layers.append(p.fc.activation.get_activation_module())
 
             last_layer_height = layer.height
 

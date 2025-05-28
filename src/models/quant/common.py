@@ -6,6 +6,8 @@ from src.models.quant.enums import ActivationModule, QMode
 
 def get_activation_module(activation: ActivationModule, qmode: QMode):
     match activation:
+        case ActivationModule.NONE:
+            return nn.Identity()
         case ActivationModule.RELU:
             return nn.ReLU()
         case ActivationModule.BINARIZE:

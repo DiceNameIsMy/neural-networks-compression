@@ -6,11 +6,10 @@ import torch
 from torch import nn
 
 from src.models.mlp import FCParams
-from src.models.nn import NNTrainParams
+from src.models.nn import ActivationParams, NNTrainParams
 from src.models.quant import binary_ReSTE, ternarize
-from src.models.quant.common import get_activation_module
 from src.models.quant.conv import Conv2dWrapper
-from src.models.quant.enums import ActivationModule, QMode
+from src.models.quant.enums import QMode, WeightQuantMode
 from src.models.quant.weight_quant import Module_Quantize
 
 logger = logging.getLogger(__name__)
@@ -42,31 +41,35 @@ class ConvParams:
     out_height: int
 
     layers: list[ConvLayerParams]
-    activation: ActivationModule
+
+    weight_qmode: WeightQuantMode
     reste_threshold: float
     reste_o: float
-    qmode: QMode = QMode.DET
+
+    activation: ActivationParams
 
     # Other
     dropout_rate: float = 0.0
 
-    def get_conv_module(self) -> type[Conv2dWrapper]:
-        match self.activation:
-            case ActivationModule.RELU:
+    def get_conv_module_cls(self) -> type[Conv2dWrapper]:
+        match self.weight_qmode:
+            case WeightQuantMode.NONE:
                 return Conv2dWrapper
-            case ActivationModule.BINARIZE:
+            case WeightQuantMode.NBITS:
+                return Conv2dWrapper
+            case WeightQuantMode.BINARY:
                 return ternarize.BinaryConv2d
-            case ActivationModule.BINARIZE_RESTE:
+            case WeightQuantMode.BINARY_RESTE:
                 return partial(
                     binary_ReSTE.Binary_ReSTE_Conv2d,
                     threshold=self.reste_threshold,
                     o=self.reste_o,
                 )  # type: ignore
-            case ActivationModule.TERNARIZE:
+            case WeightQuantMode.TERNARY:
                 return ternarize.TernaryConv2d
             case _:
                 raise Exception(
-                    f"Unknown activation function: {self.activation} of type {type(self.activation)}"
+                    f"Unknown weight quantization function: {self.weight_qmode} of type {type(self.weight_qmode)}"
                 )
 
 
@@ -162,7 +165,7 @@ class CNN(nn.Module):
 
     @classmethod
     def build_conv_layers(cls, p: CNNParams) -> nn.ModuleList:
-        ConvModule = p.conv.get_conv_module()
+        ConvModule = p.conv.get_conv_module_cls()
         conv_layers = nn.ModuleList()
 
         in_channels = p.conv.in_channels
@@ -181,7 +184,7 @@ class CNN(nn.Module):
                 )
             )
             layers.append(nn.BatchNorm2d(layer_params.channels))
-            layers.append(get_activation_module(p.conv.activation, p.conv.qmode))
+            layers.append(p.conv.activation.get_activation_module())
 
             if layer_params.add_pooling():
                 layers.append(
@@ -219,7 +222,7 @@ class CNN(nn.Module):
                 layers.append(nn.Dropout(p.fc.dropout_rate))
 
             # Add activation
-            layers.append(p.fc.activation.get_fc_layer_activation())
+            layers.append(p.fc.activation.get_activation_module())
 
             last_layer_height = hidden.height
 

@@ -2,7 +2,7 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
-from src.models.quant.enums import ActivationModule, QMode
+from src.models.quant.enums import ActivationModule, QMode, WeightQuantMode
 from src.nas.chromosome import (
     ACTIVATION_MAPPING,
     BITWIDTHS_MAPPING,
@@ -12,6 +12,7 @@ from src.nas.chromosome import (
     RESTE_O_MAPPING,
     RESTE_THRESHOLD_MAPPING,
     WEIGHT_DECAY_MAPPING,
+    WEIGHT_QUANT_MODE_MAPPING,
 )
 
 CONV_LAYERS_MAPPING = (1, 2, 3)
@@ -47,12 +48,14 @@ class CNNChromosome:
 
     dropout: float
 
-    activation: ActivationModule
-    reste_o: float
-    reste_threshold: float
+    weight_qmode: WeightQuantMode
+    weight_reste_o: float
+    weight_reste_threshold: float
 
-    quatization_mode: QMode
-    binarization_mode: QMode
+    activation: ActivationModule
+    activation_qmode: QMode
+    activation_reste_o: float
+    activation_reste_threshold: float
 
     learning_rate: float
     weight_decay: float
@@ -87,11 +90,13 @@ class RawCNNChromosome:
             fc_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
             # Other
             dropout=DROPOUT_MAPPING[x.pop(0)],
+            weight_qmode=WEIGHT_QUANT_MODE_MAPPING[x.pop(0)],
+            weight_reste_o=RESTE_O_MAPPING[x.pop(0)],
+            weight_reste_threshold=RESTE_THRESHOLD_MAPPING[x.pop(0)],
             activation=ACTIVATION_MAPPING[x.pop(0)],
-            reste_o=RESTE_O_MAPPING[x.pop(0)],
-            reste_threshold=RESTE_THRESHOLD_MAPPING[x.pop(0)],
-            quatization_mode=QMODE_MAPPING[x.pop(0)],
-            binarization_mode=QMODE_MAPPING[x.pop(0)],
+            activation_qmode=QMODE_MAPPING[x.pop(0)],
+            activation_reste_o=RESTE_O_MAPPING[x.pop(0)],
+            activation_reste_threshold=RESTE_THRESHOLD_MAPPING[x.pop(0)],
             learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
             weight_decay=WEIGHT_DECAY_MAPPING[x.pop(0)],
         )
@@ -127,11 +132,16 @@ class RawCNNChromosome:
             bitwidth_bounds,
             #
             (0, len(DROPOUT_MAPPING) - 1),
-            (0, len(ACTIVATION_MAPPING) - 1),
+            # Weight quantization
+            (0, len(WEIGHT_QUANT_MODE_MAPPING) - 1),
             (0, len(RESTE_O_MAPPING) - 1),
             (0, len(RESTE_THRESHOLD_MAPPING) - 1),
+            # Activation
+            (0, len(ACTIVATION_MAPPING) - 1),
             (0, len(QMODE_MAPPING) - 1),
-            (0, len(QMODE_MAPPING) - 1),
+            (0, len(RESTE_O_MAPPING) - 1),
+            (0, len(RESTE_THRESHOLD_MAPPING) - 1),
+            # Hyperparameters
             (0, len(LEARNING_RATES_MAPPING) - 1),
             (0, len(WEIGHT_DECAY_MAPPING) - 1),
         )

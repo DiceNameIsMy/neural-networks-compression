@@ -14,7 +14,7 @@ from src.models.cnn import CNN, CNNParams, ConvLayerParams, ConvParams
 from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
-from src.models.quant.enums import ActivationModule, WeightQuantMode
+from src.models.quant.enums import ActivationModule, QMode, WeightQuantMode
 from src.nas.cnn_chromosome import CNNChromosome, RawCNNChromosome
 from src.nas.nas_params import NasParams
 
@@ -98,6 +98,13 @@ class CnnNasProblem(ElementwiseProblem):
                 self.best_models[tuple(x)] = (accuracy, model)
 
     def get_nn_params(self, ch: CNNChromosome) -> CNNParams:
+        activation = ActivationParams(
+            activation=ch.activation,
+            reste_o=ch.activation_reste_o,
+            reste_threshold=ch.activation_reste_threshold,
+            binary_qmode=ch.activation_qmode,
+        )
+
         conv_layers = self._get_conv_layers(ch)
         conv_params = ConvParams(
             in_channels=self.DatasetCls.input_channels,
@@ -105,22 +112,18 @@ class CnnNasProblem(ElementwiseProblem):
             in_bitwidth=ch.in_bitwidth,
             out_height=self.DatasetCls.output_size,
             layers=conv_layers,
-            activation=ch.activation,
-            qmode=ch.quatization_mode,
-            reste_threshold=ch.reste_threshold,
-            reste_o=ch.reste_o,
+            weight_qmode=ch.weight_qmode,
+            reste_threshold=ch.weight_reste_threshold,
+            reste_o=ch.weight_reste_o,
+            activation=activation,
             dropout_rate=ch.dropout,
         )
 
         fc_layers = self._get_fc_layers(ch)
         fc_params = FCParams(
             layers=fc_layers,
-            activation=ActivationParams(
-                activation=ch.activation,
-                reste_o=ch.reste_o,
-                binary_qmode=ch.quatization_mode,
-            ),
-            qmode=ch.quatization_mode,
+            activation=activation,
+            qmode=QMode.DET,
             dropout_rate=ch.dropout,
         )
         train_params = NNTrainParams(

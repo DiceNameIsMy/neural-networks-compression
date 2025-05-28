@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 from src.constants import EPOCHS, LEARNING_RATE, MODELS_FOLDER
 from src.datasets.dataset import Dataset
 from src.models.quant import binary, binary_ReSTE, ternarize
-from src.models.quant.conv import Conv2dWrapper
 from src.models.quant.enums import ActivationModule, QMode
 
 logger = logging.getLogger(__name__)
@@ -22,8 +21,10 @@ class ActivationParams:
     reste_o: float = 3
     reste_threshold: float = 1.5
 
-    def get_fc_layer_activation(self):
+    def get_activation_module(self):
         match self.activation:
+            case ActivationModule.NONE:
+                return nn.Identity()
             case ActivationModule.RELU:
                 return nn.ReLU()
             case ActivationModule.BINARIZE:
@@ -38,23 +39,6 @@ class ActivationParams:
                 raise Exception(
                     "Unknown activation function: "
                     + f"{self.activation} of type {type(self.activation)}"
-                )
-
-    def get_conv_layer_class(self) -> type[Conv2dWrapper]:
-        match self.activation:
-            case ActivationModule.RELU:
-                return Conv2dWrapper
-            case ActivationModule.BINARIZE:
-                return ternarize.BinaryConv2d
-            case ActivationModule.BINARIZE_RESTE:
-                raise Exception(
-                    "Binarized ReSTE is not supported for convolution layers yet."
-                )
-            case ActivationModule.TERNARIZE:
-                return ternarize.TernaryConv2d
-            case _:
-                raise Exception(
-                    f"Unknown activation function: {self.activation} of type {type(self.activation)}"
                 )
 
 
