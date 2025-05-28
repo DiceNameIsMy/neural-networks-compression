@@ -225,16 +225,30 @@ class BinaryConv2d(Conv2dWrapper):
 
 
 class Module_Binarize(torch.nn.Module):
+    """
+    Module for binarizing the input.
+    Uses variable alpha (output scaling) for each channel.
+    """
+
     def forward(self, x):
         return Binarize(x)
 
 
 class Module_Ternarize(torch.nn.Module):
+    """
+    Module for ternarizing the input.
+    Uses variable alpha (output scaling) and delta (threshold value) for each channel.
+    """
+
     def forward(self, x):
         return Ternarize(x)
 
 
 class TernarizeLinear(torch.nn.Linear):
+    """
+    Linear layer with ternarized weights and bias (if exists).
+    """
+
     def __init__(self, *kargs, **kwargs):
         super().__init__(*kargs, **kwargs)
 

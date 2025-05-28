@@ -50,6 +50,10 @@ def binarize(input, quant_mode=QMode.DET):
 
 
 class Module_Binarize(torch.nn.Module):
+    """
+    Module for binarizing the input.
+    """
+
     qmode: QMode
 
     def __init__(self, qmode=QMode.DET):
@@ -64,6 +68,9 @@ class Module_Binarize(torch.nn.Module):
 
 
 class BinarizeLinear(torch.nn.Linear):
+    """
+    Linear layer with binarized weights and bias (if exists).
+    """
 
     def __init__(self, *kargs, **kwargs):
         super(BinarizeLinear, self).__init__(*kargs, **kwargs)
