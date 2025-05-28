@@ -73,13 +73,9 @@ class MLP(nn.Module):
             layers.append(Module_Quantize(p.fc.qmode, in_layer.weight_bitwidth))
 
         last_layer_height = in_layer.height
-        for hidden in p.fc.layers[1:]:
-            layers.append(hidden.get_fc_layer(last_layer_height))
-            layers.append(nn.BatchNorm1d(hidden.height))
-
-            # Add quantization
-            if hidden.weight_bitwidth < 32:
-                layers.append(Module_Quantize(p.fc.qmode, hidden.weight_bitwidth))
+        for layer in p.fc.layers[1:]:
+            layers.append(layer.get_fc_layer(last_layer_height))
+            layers.append(nn.BatchNorm1d(layer.height))
 
             # Add dropout
             if p.fc.dropout_rate > 0:
@@ -88,7 +84,7 @@ class MLP(nn.Module):
             # Add activation
             layers.append(p.fc.activation.get_fc_layer_activation())
 
-            last_layer_height = hidden.height
+            last_layer_height = layer.height
 
         # Combine all layers into Sequential model
         self.layers = nn.Sequential(*layers)
