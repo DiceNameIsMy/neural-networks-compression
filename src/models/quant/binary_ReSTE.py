@@ -73,7 +73,7 @@ class Module_Binarize_ReSTE(torch.nn.Module):
 
 
 class Binary_ReSTE_Conv2d(Conv2dWrapper):
-    def __init__(self, threshold: float = 1.5, o: float = 1, *kargs, **kwargs):
+    def __init__(self, threshold: float = 1.5, o: float = 3, *kargs, **kwargs):
         super().__init__(*kargs, **kwargs)
         self.threshold = torch.tensor(threshold).float()
         self.o = torch.tensor(o).float()
