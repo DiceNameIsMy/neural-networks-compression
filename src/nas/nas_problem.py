@@ -34,7 +34,14 @@ class NasProblem(ElementwiseProblem):
     train_loader: data.DataLoader
     test_loader: data.DataLoader
 
-    best_models: dict[tuple[int], tuple[float, MLP | CNN]]
+    # Used to store best models that appear during NAS.
+    # Key is a tuple of chromosome genes, value is a tuple of (accuracy, CNN model).
+    #
+    # NOTE: A best accuracy is chosen, but due to the training running on varying dataset
+    # subsets, there isn't a guarantee that it's actually the best model.
+    # When comparing 2 models, they could perform good their own subset of data,
+    # but have worse performance on another.
+    best_architecture: dict[tuple[int], tuple[float, MLP | CNN]]
 
     def __init__(
         self,
@@ -51,7 +58,7 @@ class NasProblem(ElementwiseProblem):
         self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders(
             self.p.batch_size
         )
-        self.best_models = {}
+        self.best_architecture = {}
 
         x_low, x_high = self.chromosome_cfg.get_bounds()
         super().__init__(
@@ -92,18 +99,20 @@ class NasProblem(ElementwiseProblem):
         out["F"] = [f1, f2]
 
     def store_model_if_is_is_good(self, x: np.ndarray, accuracy: float, model: MLP):
-        if len(self.best_models) < self.p.population_size:
+        if len(self.best_architecture) < self.p.population_size:
             # Store the best model for this chromosome
-            self.best_models[tuple(x)] = (accuracy, model)
+            self.best_architecture[tuple(x)] = (accuracy, model)
             return
 
-        worst_key = min(self.best_models, key=lambda k: self.best_models[k][0])
-        worst_accuracy = self.best_models[worst_key][0]
+        worst_key = min(
+            self.best_architecture, key=lambda k: self.best_architecture[k][0]
+        )
+        worst_accuracy = self.best_architecture[worst_key][0]
 
         # Replace the worst model if a new one is better
         if accuracy > worst_accuracy:
-            self.best_models.pop(worst_key)
-            self.best_models[tuple(x)] = (accuracy, model)
+            self.best_architecture.pop(worst_key)
+            self.best_architecture[tuple(x)] = (accuracy, model)
 
     def get_nn_params(self, ch: Chromosome) -> MLPParams | CNNParams:
         raise NotImplementedError(

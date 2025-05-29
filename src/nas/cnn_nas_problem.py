@@ -13,16 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class CnnNasProblem(NasProblem):
-    # Used to store best models that appear during NAS.
-    # Key is a tuple of chromosome genes, value is a tuple of (accuracy, CNN model).
-    #
-    # NOTE: A best accuracy is chosen, but due to the training running on varying dataset
-    # subsets, there isn't a guarantee that it's actually the best model.
-    # When comparing 2 models, they could perform good their own subset of data,
-    # but have worse performance on another.
-    #
-    # NOTE: What "Best model" means needs to be clarified...
-
     ChromosomeCls: type[CNNChromosome]
     DatasetCls: type[CnnDataset]
 

@@ -67,7 +67,7 @@ def run_nas_pipeline(
     logger.info("NAS has finished")
 
     if store_models:
-        for chromosome, (accuracy, model) in problem.best_models.items():
+        for chromosome, (accuracy, model) in problem.best_architecture.items():
             if chromosome in map(tuple, df["Chromosome"].values):
                 chromosome_str = "-".join(map(str, chromosome))
                 accuracy_str = str(round(accuracy, 4))
