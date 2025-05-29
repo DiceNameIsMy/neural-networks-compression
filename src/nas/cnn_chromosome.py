@@ -8,11 +8,11 @@ from src.nas.chromosome import (
     BITWIDTHS_MAPPING,
     DROPOUT_MAPPING,
     LEARNING_RATES_MAPPING,
+    NN_PARAMS_COMP_MODE_MAPPING,
     QMODE_MAPPING,
     RESTE_O_MAPPING,
     RESTE_THRESHOLD_MAPPING,
     WEIGHT_DECAY_MAPPING,
-    WEIGHT_QUANT_MODE_MAPPING,
 )
 
 CONV_LAYERS_MAPPING = (1, 2, 3)
@@ -48,9 +48,7 @@ class CNNChromosome:
 
     dropout: float
 
-    weight_qmode: NNParamsCompMode
-    weight_reste_o: float
-    weight_reste_threshold: float
+    compression: NNParamsCompMode
 
     activation: Activation
     activation_qmode: QMode
@@ -60,13 +58,9 @@ class CNNChromosome:
     learning_rate: float
     weight_decay: float
 
-
-@dataclass
-class RawCNNChromosome:
-    x: np.ndarray
-
-    def parse(self) -> CNNChromosome:
-        x = list(self.x)
+    @staticmethod
+    def parse(encoded: np.ndarray) -> "CNNChromosome":
+        x = list(encoded)
         ch = CNNChromosome(
             in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
             # Conv layers
@@ -90,9 +84,7 @@ class RawCNNChromosome:
             fc_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
             # Other
             dropout=DROPOUT_MAPPING[x.pop(0)],
-            weight_qmode=WEIGHT_QUANT_MODE_MAPPING[x.pop(0)],
-            weight_reste_o=RESTE_O_MAPPING[x.pop(0)],
-            weight_reste_threshold=RESTE_THRESHOLD_MAPPING[x.pop(0)],
+            compression=NN_PARAMS_COMP_MODE_MAPPING[x.pop(0)],
             activation=ACTIVATION_MAPPING[x.pop(0)],
             activation_qmode=QMODE_MAPPING[x.pop(0)],
             activation_reste_o=RESTE_O_MAPPING[x.pop(0)],
@@ -132,10 +124,8 @@ class RawCNNChromosome:
             bitwidth_bounds,
             #
             (0, len(DROPOUT_MAPPING) - 1),
-            # Weight quantization
-            (0, len(WEIGHT_QUANT_MODE_MAPPING) - 1),
-            (0, len(RESTE_O_MAPPING) - 1),
-            (0, len(RESTE_THRESHOLD_MAPPING) - 1),
+            # Layer compression
+            (0, len(NN_PARAMS_COMP_MODE_MAPPING) - 1),
             # Activation
             (0, len(ACTIVATION_MAPPING) - 1),
             (0, len(QMODE_MAPPING) - 1),
@@ -147,7 +137,7 @@ class RawCNNChromosome:
         )
         low, high = np.column_stack(bounds)
 
-        size = RawCNNChromosome.get_size()
+        size = CNNChromosome.get_size()
         assert size == len(low)
         assert size == len(high)
 

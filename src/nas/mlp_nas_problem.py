@@ -13,17 +13,13 @@ from src.models.compression.enums import NNParamsCompMode
 from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import MLP, FCLayerParams, FCParams, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
-from src.nas.mlp_chromosome import MLPChromosome, RawMLPChromosome
+from src.nas.mlp_chromosome import MLPChromosome
 from src.nas.nas_params import NasParams
 
 logger = logging.getLogger(__name__)
 
 
 class MlpNasProblem(ElementwiseProblem):
-    # TODO: I'm not getting many diverse solutions because
-    #       I only have 2 objectives -> there isn't space for
-    #       many distinct solutions. It that okay?
-
     # TODO: It it better to use best accuracy instead of mean
     #       accuracy as an optimization goal? Or perhaps I should
     #       keep using both, but then train the final population
@@ -40,9 +36,9 @@ class MlpNasProblem(ElementwiseProblem):
     best_models: dict[tuple[int], tuple[float, MLP]]
 
     def __init__(self, params: NasParams, DatasetCls: type[MlpDataset]):
-        x_low, x_high = RawMLPChromosome.get_bounds()
+        x_low, x_high = MLPChromosome.get_bounds()
         super().__init__(
-            n_var=RawMLPChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
+            n_var=MLPChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
         )  # Part of a workaround to the rounding problem
 
         self.p = params
@@ -53,7 +49,7 @@ class MlpNasProblem(ElementwiseProblem):
         self.best_models = {}
 
     def _evaluate(self, x, out, *args, **kwargs):
-        ch = RawMLPChromosome(x).parse()
+        ch = MLPChromosome.parse(x)
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
@@ -76,51 +72,26 @@ class MlpNasProblem(ElementwiseProblem):
         if len(self.best_models) < self.p.population_size:
             # Store the best model for this chromosome
             self.best_models[tuple(x)] = (accuracy, model)
-        else:
-            worst_key = min(self.best_models, key=lambda k: self.best_models[k][0])
-            worst_accuracy = self.best_models[worst_key][0]
+            return
 
-            # Replace the worst model if a new one is better
-            if accuracy > worst_accuracy:
-                self.best_models.pop(worst_key)
-                self.best_models[tuple(x)] = (accuracy, model)
+        worst_key = min(self.best_models, key=lambda k: self.best_models[k][0])
+        worst_accuracy = self.best_models[worst_key][0]
+
+        # Replace the worst model if a new one is better
+        if accuracy > worst_accuracy:
+            self.best_models.pop(worst_key)
+            self.best_models[tuple(x)] = (accuracy, model)
 
     def get_nn_params(self, ch: MLPChromosome) -> MLPParams:
-        layers = []
-        layers.append(
-            FCLayerParams(
-                self.DatasetCls.input_size, NNParamsCompMode.NBITS, ch.in_bitwidth
-            )
+        activation = ActivationParams(
+            activation=ch.activation,
+            reste_o=ch.reste_o,
+            binary_qmode=ch.quatization_mode,
         )
-        if ch.hidden_layers >= 1:
-            layers.append(
-                FCLayerParams(
-                    ch.hidden_height1, NNParamsCompMode.NBITS, ch.hidden_bitwidth1
-                )
-            )
-        if ch.hidden_layers >= 2:
-            layers.append(
-                FCLayerParams(
-                    ch.hidden_height2, NNParamsCompMode.NBITS, ch.hidden_bitwidth2
-                )
-            )
-        if ch.hidden_layers >= 3:
-            layers.append(
-                FCLayerParams(
-                    ch.hidden_height3, NNParamsCompMode.NBITS, ch.hidden_bitwidth3
-                )
-            )
-        layers.append(
-            FCLayerParams(self.DatasetCls.output_size, NNParamsCompMode.NONE, 32)
-        )
-
+        layers = self._make_fc_layers(ch)
         fc_params = FCParams(
             layers=layers,
-            activation=ActivationParams(
-                activation=ch.activation,
-                reste_o=ch.reste_o,
-                binary_qmode=ch.quatization_mode,
-            ),
+            activation=activation,
             qmode=ch.quatization_mode,
             dropout_rate=ch.dropout,
         )
@@ -135,18 +106,46 @@ class MlpNasProblem(ElementwiseProblem):
         )
         return MLPParams(fc=fc_params, train=train_params)
 
+    def _make_fc_layers(self, ch: MLPChromosome) -> list[FCLayerParams]:
+        layers = []
+
+        layers.append(
+            FCLayerParams(
+                self.DatasetCls.input_size, NNParamsCompMode.NBITS, ch.in_bitwidth
+            )
+        )
+        if ch.hidden_layers >= 1:
+            layers.append(
+                FCLayerParams(ch.hidden_height1, ch.compression, ch.hidden_bitwidth1)
+            )
+        if ch.hidden_layers >= 2:
+            layers.append(
+                FCLayerParams(ch.hidden_height2, ch.compression, ch.hidden_bitwidth2)
+            )
+        if ch.hidden_layers >= 3:
+            layers.append(
+                FCLayerParams(ch.hidden_height3, ch.compression, ch.hidden_bitwidth3)
+            )
+        layers.append(
+            FCLayerParams(
+                self.DatasetCls.output_size, ch.compression, ch.output_bitwidth
+            )
+        )
+
+        return layers
+
     @lru_cache(maxsize=1)
     def get_min_complexity(self) -> float:
-        x = RawMLPChromosome.get_bounds()[0]
-        ch = RawMLPChromosome(x).parse()
+        x = MLPChromosome.get_bounds()[0]
+        ch = MLPChromosome.parse(x)
         params = self.get_nn_params(ch)
         complexity = params.get_complexity()
         return complexity
 
     @lru_cache(maxsize=1)
     def get_max_complexity(self) -> float:
-        x = RawMLPChromosome.get_bounds()[1]
-        ch = RawMLPChromosome(x).parse()
+        x = MLPChromosome.get_bounds()[1]
+        ch = MLPChromosome.parse(x)
         params = self.get_nn_params(ch)
         complexity = params.get_complexity()
         return complexity
@@ -179,7 +178,7 @@ class MlpNasProblem(ElementwiseProblem):
                 f[1], self.get_min_complexity(), self.get_max_complexity()
             )
 
-            ch = RawMLPChromosome(x).parse()
+            ch = MLPChromosome.parse(x)
             params = self.get_nn_params(ch)
 
             data.append(

@@ -4,7 +4,7 @@ BITWIDTHS_MAPPING = (1, 2, 3, 4, 5, 6, 7, 8)
 
 ACTIVATION_MAPPING = tuple(act for act in Activation)
 QMODE_MAPPING = tuple(q for q in QMode)
-WEIGHT_QUANT_MODE_MAPPING = tuple(q for q in NNParamsCompMode)
+NN_PARAMS_COMP_MODE_MAPPING = tuple(q for q in NNParamsCompMode)
 RESTE_O_MAPPING = (1.5, 2.0, 3.0, 4.0)
 RESTE_THRESHOLD_MAPPING = (1.5,)
 

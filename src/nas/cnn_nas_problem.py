@@ -14,7 +14,7 @@ from src.models.compression.enums import NNParamsCompMode, QMode
 from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
-from src.nas.cnn_chromosome import CNNChromosome, RawCNNChromosome
+from src.nas.cnn_chromosome import CNNChromosome
 from src.nas.nas_params import NasParams
 
 logger = logging.getLogger(__name__)
@@ -38,9 +38,9 @@ class CnnNasProblem(ElementwiseProblem):
     best_models: dict[tuple[int], tuple[float, CNN]]
 
     def __init__(self, params: NasParams, DatasetCls: type[CnnDataset]):
-        x_low, x_high = RawCNNChromosome.get_bounds()
+        x_low, x_high = CNNChromosome.get_bounds()
         super().__init__(
-            n_var=RawCNNChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
+            n_var=CNNChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
         )  # Part of a workaround to the rounding problem
 
         self.p = params
@@ -51,7 +51,7 @@ class CnnNasProblem(ElementwiseProblem):
         self.best_models = {}
 
     def _evaluate(self, x, out, *args, **kwargs):
-        ch = RawCNNChromosome(x).parse()
+        ch = CNNChromosome.parse(x)
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
@@ -76,7 +76,7 @@ class CnnNasProblem(ElementwiseProblem):
         f1 = -self.normalize(accuracy, 0, 100)
 
         # Minimize NN complexity
-        complexity = self.compute_nn_complexity(params)
+        complexity = params.get_complexity()
         f2 = self.normalize(
             complexity, self.get_min_complexity(), self.get_max_complexity()
         )
@@ -111,9 +111,9 @@ class CnnNasProblem(ElementwiseProblem):
             in_bitwidth=ch.in_bitwidth,
             out_height=self.DatasetCls.output_size,
             layers=conv_layers,
-            compression=ch.weight_qmode,
-            reste_threshold=ch.weight_reste_threshold,
-            reste_o=ch.weight_reste_o,
+            compression=ch.compression,
+            reste_threshold=ch.activation_reste_threshold,
+            reste_o=ch.activation_reste_o,
             activation=activation,
             dropout_rate=ch.dropout,
         )
@@ -194,16 +194,16 @@ class CnnNasProblem(ElementwiseProblem):
 
     @lru_cache(maxsize=1)
     def get_min_complexity(self) -> float:
-        x = RawCNNChromosome.get_bounds()[0]
-        ch = RawCNNChromosome(x).parse()
+        x = CNNChromosome.get_bounds()[0]
+        ch = CNNChromosome.parse(x)
         params = self.get_nn_params(ch)
         complexity = params.get_complexity()
         return complexity
 
     @lru_cache(maxsize=1)
     def get_max_complexity(self) -> float:
-        x = RawCNNChromosome.get_bounds()[1]
-        ch = RawCNNChromosome(x).parse()
+        x = CNNChromosome.get_bounds()[1]
+        ch = CNNChromosome.parse(x)
         params = self.get_nn_params(ch)
         complexity = params.get_complexity()
         return complexity
@@ -236,7 +236,7 @@ class CnnNasProblem(ElementwiseProblem):
                 f[1], self.get_min_complexity(), self.get_max_complexity()
             )
 
-            ch = RawCNNChromosome(x).parse()
+            ch = CNNChromosome.parse(x)
             params = self.get_nn_params(ch)
 
             data.append(
