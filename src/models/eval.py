@@ -22,7 +22,7 @@ class NNArchitectureEvaluator:
         self.p = params
         self.criterion = nn.CrossEntropyLoss()
 
-    def evaluate_model(self, times=1):
+    def evaluate_accuracy(self, times=1):
         best_model = None
         accuracies = []
         for _ in range(times):
@@ -160,7 +160,7 @@ class KFoldNNArchitectureEvaluator:
         self.p = params
         self.kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
-    def evaluate(self, times=1):
+    def evaluate_accuracy(self, times=1):
         X, y = self.p.train.DatasetCls.get_xy()
 
         best_model = None
@@ -183,7 +183,7 @@ class KFoldNNArchitectureEvaluator:
                 num_workers=DATALOADERS_NUM_WORKERS,
             )
             evaluator = NNArchitectureEvaluator(self.p)
-            stats = evaluator.evaluate_model(times)
+            stats = evaluator.evaluate_accuracy(times)
 
             if best_model is None or stats["max"] > max(accuracies):
                 best_model = stats["best_model"]

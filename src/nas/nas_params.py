@@ -67,7 +67,7 @@ class NasParams:
         return NSGA2(
             pop_size=self.population_size,
             n_offsprings=self.population_offspring_count,
-            sampling=sampling,
+            sampling=sampling,  # type: ignore
             crossover=SBX(prob=0.9, eta=15, repair=FloorRepair()),
             mutation=PM(eta=20, repair=FloorRepair()),
             eliminate_duplicates=True,

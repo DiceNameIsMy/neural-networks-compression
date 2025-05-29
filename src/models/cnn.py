@@ -1,4 +1,5 @@
 import logging
+import math
 from dataclasses import dataclass
 
 import torch
@@ -6,7 +7,7 @@ from torch import nn
 
 from src.models.compression import ternarize
 from src.models.compression.conv import Conv2dWrapper
-from src.models.compression.enums import NNParamsCompMode, QMode
+from src.models.compression.enums import Activation, NNParamsCompMode, QMode
 from src.models.compression.weight_quant import Quantize
 from src.models.mlp import FCParams
 from src.models.nn import ActivationParams, NNTrainParams
@@ -77,6 +78,26 @@ class CNNParams:
 
     def get_model(self) -> "CNN":
         return CNN(self)
+
+    def get_complexity(self) -> float:
+        conv_complexity = 1000 * len(self.conv.layers)  # TODO: Make it more precise
+
+        fc_complexity = 0
+        prev_layer = self.fc.layers[0]
+        for layer in self.fc.layers[1:]:
+            mults = prev_layer.height * layer.height
+            bitwidth = prev_layer.bitwidth
+            fc_complexity += mults * (math.log2(max(2, bitwidth)) * 3)
+
+            prev_layer = layer
+
+        activation_coef = 3 if self.fc.activation.activation == Activation.RELU else 1.2
+        fc_complexity *= activation_coef
+
+        complexity = 0
+        complexity += conv_complexity
+        complexity += fc_complexity
+        return complexity
 
 
 class CNN(nn.Module):

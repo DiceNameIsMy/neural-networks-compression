@@ -1,5 +1,4 @@
 import logging
-import math
 from dataclasses import asdict
 from functools import lru_cache
 
@@ -10,7 +9,7 @@ from pymoo.core.result import Result
 from torch.utils import data
 
 from src.datasets.dataset import MlpDataset
-from src.models.compression.enums import Activation, NNParamsCompMode
+from src.models.compression.enums import NNParamsCompMode
 from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import MLP, FCLayerParams, FCParams, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
@@ -58,32 +57,31 @@ class MlpNasProblem(ElementwiseProblem):
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
-        stats = KFoldNNArchitectureEvaluator(params).evaluate(
-            times=self.p.amount_of_evaluations
-        )
-        self.try_store_model(x, stats["max"], stats["best_model"])
-
         # Maximize accuracy
+        evaluator = KFoldNNArchitectureEvaluator(params)
+        stats = evaluator.evaluate_accuracy(times=self.p.amount_of_evaluations)
         f1 = -self.normalize(stats["max"], 0, 100)
 
         # Minimize NN complexity
-        complexity = self.compute_nn_complexity(params)
+        complexity = params.get_complexity()
         f2 = self.normalize(
             complexity, self.get_min_complexity(), self.get_max_complexity()
         )
 
         out["F"] = [f1, f2]
 
-    def try_store_model(self, x: np.ndarray, accuracy: float, model: MLP):
+        self.store_model_if_is_is_good(x, stats["max"], stats["best_model"])
+
+    def store_model_if_is_is_good(self, x: np.ndarray, accuracy: float, model: MLP):
         if len(self.best_models) < self.p.population_size:
             # Store the best model for this chromosome
             self.best_models[tuple(x)] = (accuracy, model)
         else:
-            # Replace the worst model if a new one is better
             worst_key = min(self.best_models, key=lambda k: self.best_models[k][0])
-            worst_key_accuracy = self.best_models[worst_key][0]
+            worst_accuracy = self.best_models[worst_key][0]
 
-            if accuracy > worst_key_accuracy:
+            # Replace the worst model if a new one is better
+            if accuracy > worst_accuracy:
                 self.best_models.pop(worst_key)
                 self.best_models[tuple(x)] = (accuracy, model)
 
@@ -137,28 +135,12 @@ class MlpNasProblem(ElementwiseProblem):
         )
         return MLPParams(fc=fc_params, train=train_params)
 
-    def compute_nn_complexity(self, p: MLPParams) -> float:
-        complexity = 0
-
-        prev_layer = p.fc.layers[0]
-        for layer in p.fc.layers[1:]:
-            mults = prev_layer.height * layer.height
-            bitwidth = prev_layer.bitwidth
-            complexity += mults * (math.log2(max(2, bitwidth)) * 3)
-
-            prev_layer = layer
-
-        activation_coef = 3 if p.fc.activation.activation == Activation.RELU else 1.2
-        complexity *= activation_coef
-
-        return complexity
-
     @lru_cache(maxsize=1)
     def get_min_complexity(self) -> float:
         x = RawMLPChromosome.get_bounds()[0]
         ch = RawMLPChromosome(x).parse()
         params = self.get_nn_params(ch)
-        complexity = self.compute_nn_complexity(params)
+        complexity = params.get_complexity()
         return complexity
 
     @lru_cache(maxsize=1)
@@ -166,7 +148,7 @@ class MlpNasProblem(ElementwiseProblem):
         x = RawMLPChromosome.get_bounds()[1]
         ch = RawMLPChromosome(x).parse()
         params = self.get_nn_params(ch)
-        complexity = self.compute_nn_complexity(params)
+        complexity = params.get_complexity()
         return complexity
 
     @staticmethod

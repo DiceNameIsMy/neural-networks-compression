@@ -1,10 +1,11 @@
 import logging
+import math
 from dataclasses import dataclass
 
 from torch import nn
 
 from src.models.compression import binary, ternarize, weight_quant
-from src.models.compression.enums import NNParamsCompMode, QMode
+from src.models.compression.enums import Activation, NNParamsCompMode, QMode
 from src.models.compression.weight_quant import Quantize
 from src.models.nn import ActivationParams, NNTrainParams
 
@@ -55,6 +56,22 @@ class MLPParams:
 
     def get_model(self) -> "MLP":
         return MLP(self)
+
+    def get_complexity(self) -> float:
+        complexity = 0
+
+        prev_layer = self.fc.layers[0]
+        for layer in self.fc.layers[1:]:
+            mults = prev_layer.height * layer.height
+            bitwidth = prev_layer.bitwidth
+            complexity += mults * (math.log2(max(2, bitwidth)) * 3)
+
+            prev_layer = layer
+
+        activation_coef = 3 if self.fc.activation.activation == Activation.RELU else 1.2
+        complexity *= activation_coef
+
+        return complexity
 
 
 class MLP(nn.Module):

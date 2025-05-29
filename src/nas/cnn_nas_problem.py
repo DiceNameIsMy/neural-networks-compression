@@ -1,5 +1,4 @@
 import logging
-import math
 from dataclasses import asdict
 from functools import lru_cache
 
@@ -11,7 +10,7 @@ from torch.utils import data
 
 from src.datasets.dataset import CnnDataset
 from src.models.cnn import CNN, CNNParams, ConvLayerParams, ConvParams
-from src.models.compression.enums import Activation, NNParamsCompMode, QMode
+from src.models.compression.enums import NNParamsCompMode, QMode
 from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
@@ -57,7 +56,7 @@ class CnnNasProblem(ElementwiseProblem):
         logger.debug(f"Evaluating {params}")
 
         try:
-            stats = KFoldNNArchitectureEvaluator(params).evaluate(
+            stats = KFoldNNArchitectureEvaluator(params).evaluate_accuracy(
                 times=self.p.amount_of_evaluations
             )
             self.try_store_model(x, stats["max"], stats["best_model"])
@@ -193,32 +192,12 @@ class CnnNasProblem(ElementwiseProblem):
             )
         return layers
 
-    def compute_nn_complexity(self, p: CNNParams) -> float:
-        conv_complexity = 1000 * len(p.conv.layers)  # TODO: Make it more precise
-
-        fc_complexity = 0
-        prev_layer = p.fc.layers[0]
-        for layer in p.fc.layers[1:]:
-            mults = prev_layer.height * layer.height
-            bitwidth = prev_layer.bitwidth
-            fc_complexity += mults * (math.log2(max(2, bitwidth)) * 3)
-
-            prev_layer = layer
-
-        activation_coef = 3 if p.fc.activation.activation == Activation.RELU else 1.2
-        fc_complexity *= activation_coef
-
-        complexity = 0
-        complexity += conv_complexity
-        complexity += fc_complexity
-        return complexity
-
     @lru_cache(maxsize=1)
     def get_min_complexity(self) -> float:
         x = RawCNNChromosome.get_bounds()[0]
         ch = RawCNNChromosome(x).parse()
         params = self.get_nn_params(ch)
-        complexity = self.compute_nn_complexity(params)
+        complexity = params.get_complexity()
         return complexity
 
     @lru_cache(maxsize=1)
@@ -226,7 +205,7 @@ class CnnNasProblem(ElementwiseProblem):
         x = RawCNNChromosome.get_bounds()[1]
         ch = RawCNNChromosome(x).parse()
         params = self.get_nn_params(ch)
-        complexity = self.compute_nn_complexity(params)
+        complexity = params.get_complexity()
         return complexity
 
     @staticmethod
