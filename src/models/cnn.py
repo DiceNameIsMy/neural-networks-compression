@@ -1,16 +1,15 @@
 import logging
 from dataclasses import dataclass
-from functools import partial
 
 import torch
 from torch import nn
 
+from src.models.compression import ternarize
+from src.models.compression.conv import Conv2dWrapper
+from src.models.compression.enums import NNParamsCompMode, QMode
+from src.models.compression.weight_quant import Quantize
 from src.models.mlp import FCParams
 from src.models.nn import ActivationParams, NNTrainParams
-from src.models.quant import binary_ReSTE, ternarize
-from src.models.quant.conv import Conv2dWrapper
-from src.models.quant.enums import QMode, WeightQuantMode
-from src.models.quant.weight_quant import Module_Quantize
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class ConvParams:
 
     layers: list[ConvLayerParams]
 
-    weight_qmode: WeightQuantMode
+    compression: NNParamsCompMode
     reste_threshold: float
     reste_o: float
 
@@ -52,24 +51,20 @@ class ConvParams:
     dropout_rate: float = 0.0
 
     def get_conv_module_cls(self) -> type[Conv2dWrapper]:
-        match self.weight_qmode:
-            case WeightQuantMode.NONE:
+        match self.compression:
+            case NNParamsCompMode.NONE:
                 return Conv2dWrapper
-            case WeightQuantMode.NBITS:
-                return Conv2dWrapper
-            case WeightQuantMode.BINARY:
-                return ternarize.BinaryConv2d
-            case WeightQuantMode.BINARY_RESTE:
-                return partial(
-                    binary_ReSTE.Binary_ReSTE_Conv2d,
-                    threshold=self.reste_threshold,
-                    o=self.reste_o,
-                )  # type: ignore
-            case WeightQuantMode.TERNARY:
-                return ternarize.TernaryConv2d
+            case NNParamsCompMode.NBITS:
+                raise NotImplementedError(
+                    "NBITS compression mode is not implemented for convolutional layers"
+                )
+            case NNParamsCompMode.BINARY:
+                return ternarize.Conv2dBinary
+            case NNParamsCompMode.TERNARY:
+                return ternarize.Conv2dTernary
             case _:
                 raise Exception(
-                    f"Unknown weight quantization function: {self.weight_qmode} of type {type(self.weight_qmode)}"
+                    f"Unknown compression value `{self.compression}` of type `{type(self.compression)}`"
                 )
 
 
@@ -94,10 +89,8 @@ class CNN(nn.Module):
         self.p = p
 
         # Inputs quantization
-        self.in_quantize_layer = (
-            Module_Quantize(QMode.DET, p.in_bitwidth)
-            if p.in_bitwidth < 32
-            else nn.Identity()
+        self.quantize_input = (
+            Quantize(QMode.DET, p.in_bitwidth) if p.in_bitwidth < 32 else nn.Identity()
         )
 
         self.conv_layers = self.build_conv_layers(p)
@@ -107,7 +100,7 @@ class CNN(nn.Module):
         self.fc_layers = self.build_fc_layers(p, fc_in_height)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.in_quantize_layer(x)
+        x = self.quantize_input(x)
 
         # Convolutional layers
         for layer in self.conv_layers:
@@ -144,24 +137,6 @@ class CNN(nn.Module):
         # Flatten the conv output
         flattened = x.reshape(x.shape[0], -1)
         logger.info(f"FC input size is {flattened.size(1)}")
-
-    @staticmethod
-    @torch.no_grad()
-    def _get_fc_in_height(p: CNNParams, conv_layers: nn.ModuleList) -> int:
-        # Forward pass dummy input through convolutional layers
-        dummy_input = torch.zeros(
-            1,
-            p.conv.in_channels,
-            p.conv.in_dimensions,
-            p.conv.in_dimensions,
-        )
-        x = dummy_input
-        for layer in conv_layers:
-            x = layer(x)
-
-        # Flatten the conv output
-        flattened = x.reshape(x.shape[0], -1)
-        return flattened.size(1)
 
     @classmethod
     def build_conv_layers(cls, p: CNNParams) -> nn.ModuleList:
@@ -225,3 +200,21 @@ class CNN(nn.Module):
         layers.append(nn.Linear(last_layer_height, out_layer.height))
 
         return nn.Sequential(*layers)
+
+    @staticmethod
+    @torch.no_grad()
+    def _get_fc_in_height(p: CNNParams, conv_layers: nn.ModuleList) -> int:
+        # Forward pass dummy input through convolutional layers
+        dummy_input = torch.zeros(
+            1,
+            p.conv.in_channels,
+            p.conv.in_dimensions,
+            p.conv.in_dimensions,
+        )
+        x = dummy_input
+        for layer in conv_layers:
+            x = layer(x)
+
+        # Flatten the conv output
+        flattened = x.reshape(x.shape[0], -1)
+        return flattened.size(1)

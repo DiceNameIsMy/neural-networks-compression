@@ -10,10 +10,10 @@ from pymoo.core.result import Result
 from torch.utils import data
 
 from src.datasets.dataset import MlpDataset
+from src.models.compression.enums import Activation, NNParamsCompMode
 from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import MLP, FCLayerParams, FCParams, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
-from src.models.quant.enums import ActivationModule, WeightQuantMode
 from src.nas.mlp_chromosome import MLPChromosome, RawMLPChromosome
 from src.nas.nas_params import NasParams
 
@@ -91,29 +91,29 @@ class MlpNasProblem(ElementwiseProblem):
         layers = []
         layers.append(
             FCLayerParams(
-                self.DatasetCls.input_size, WeightQuantMode.NBITS, ch.in_bitwidth
+                self.DatasetCls.input_size, NNParamsCompMode.NBITS, ch.in_bitwidth
             )
         )
         if ch.hidden_layers >= 1:
             layers.append(
                 FCLayerParams(
-                    ch.hidden_height1, WeightQuantMode.NBITS, ch.hidden_bitwidth1
+                    ch.hidden_height1, NNParamsCompMode.NBITS, ch.hidden_bitwidth1
                 )
             )
         if ch.hidden_layers >= 2:
             layers.append(
                 FCLayerParams(
-                    ch.hidden_height2, WeightQuantMode.NBITS, ch.hidden_bitwidth2
+                    ch.hidden_height2, NNParamsCompMode.NBITS, ch.hidden_bitwidth2
                 )
             )
         if ch.hidden_layers >= 3:
             layers.append(
                 FCLayerParams(
-                    ch.hidden_height3, WeightQuantMode.NBITS, ch.hidden_bitwidth3
+                    ch.hidden_height3, NNParamsCompMode.NBITS, ch.hidden_bitwidth3
                 )
             )
         layers.append(
-            FCLayerParams(self.DatasetCls.output_size, WeightQuantMode.NONE, 32)
+            FCLayerParams(self.DatasetCls.output_size, NNParamsCompMode.NONE, 32)
         )
 
         fc_params = FCParams(
@@ -143,14 +143,12 @@ class MlpNasProblem(ElementwiseProblem):
         prev_layer = p.fc.layers[0]
         for layer in p.fc.layers[1:]:
             mults = prev_layer.height * layer.height
-            bitwidth = prev_layer.weight_bitwidth
+            bitwidth = prev_layer.bitwidth
             complexity += mults * (math.log2(max(2, bitwidth)) * 3)
 
             prev_layer = layer
 
-        activation_coef = (
-            3 if p.fc.activation.activation == ActivationModule.RELU else 1.2
-        )
+        activation_coef = 3 if p.fc.activation.activation == Activation.RELU else 1.2
         complexity *= activation_coef
 
         return complexity

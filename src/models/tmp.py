@@ -1,8 +1,8 @@
 import torch.nn.functional as F
 from torch import Tensor, nn
 
-from src.models.quant import binary, binary_ReSTE
-from src.models.quant.ternarize import TernaryConv2d
+from src.models.compression import binary, binary_ReSTE
+from src.models.compression.ternarize import TernaryConv2d
 
 
 class BCNN(nn.Module):

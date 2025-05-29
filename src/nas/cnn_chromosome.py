@@ -2,7 +2,7 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
-from src.models.quant.enums import ActivationModule, QMode, WeightQuantMode
+from src.models.compression.enums import Activation, NNParamsCompMode, QMode
 from src.nas.chromosome import (
     ACTIVATION_MAPPING,
     BITWIDTHS_MAPPING,
@@ -48,11 +48,11 @@ class CNNChromosome:
 
     dropout: float
 
-    weight_qmode: WeightQuantMode
+    weight_qmode: NNParamsCompMode
     weight_reste_o: float
     weight_reste_threshold: float
 
-    activation: ActivationModule
+    activation: Activation
     activation_qmode: QMode
     activation_reste_o: float
     activation_reste_threshold: float

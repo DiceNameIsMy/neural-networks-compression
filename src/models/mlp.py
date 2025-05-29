@@ -3,10 +3,10 @@ from dataclasses import dataclass
 
 from torch import nn
 
+from src.models.compression import binary, ternarize, weight_quant
+from src.models.compression.enums import NNParamsCompMode, QMode
+from src.models.compression.weight_quant import Quantize
 from src.models.nn import ActivationParams, NNTrainParams
-from src.models.quant import binary, ternarize, weight_quant
-from src.models.quant.enums import QMode, WeightQuantMode
-from src.models.quant.weight_quant import Module_Quantize
 
 logger = logging.getLogger(__name__)
 
@@ -14,29 +14,27 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FCLayerParams:
     height: int
-    weight_qmode: WeightQuantMode
-    weight_bitwidth: int = 32
+    compression: NNParamsCompMode
+    bitwidth: int = 32
 
     def get_fc_layer(self, in_height: int) -> nn.Linear:
-        match self.weight_qmode:
-            case WeightQuantMode.NONE:
+        match self.compression:
+            case NNParamsCompMode.NONE:
                 return nn.Linear(in_height, self.height)
-            case WeightQuantMode.NBITS:
-                assert self.weight_bitwidth > 0, "Bitwidth must be greater than 0"
-                assert (
-                    self.weight_bitwidth < 32
-                ), "For NBITS, bitwidth must be less than 32"
-                return weight_quant.QuantizedWeightLinear(
-                    self.weight_bitwidth, in_height, self.height
+            case NNParamsCompMode.NBITS:
+                assert self.bitwidth > 0, "Bitwidth must be greater than 0"
+                assert self.bitwidth < 32, "Bitwidth must be less than 32"
+                return weight_quant.LinearQunatized(
+                    self.bitwidth, in_height, self.height
                 )
-            case WeightQuantMode.BINARY:
-                return binary.BinarizeLinear(in_height, self.height)
-            case WeightQuantMode.TERNARY:
-                return ternarize.TernarizeLinear(in_height, self.height)
+            case NNParamsCompMode.BINARY:
+                return binary.LinearBinary(in_height, self.height)
+            case NNParamsCompMode.TERNARY:
+                return ternarize.LinearTernary(in_height, self.height)
             case _:
                 raise Exception(
                     "Unknown weight quantization mode: "
-                    + f"{self.weight_qmode} of type {type(self.weight_qmode)}"
+                    + f"{self.compression} of type {type(self.compression)}"
                 )
 
 
@@ -69,8 +67,8 @@ class MLP(nn.Module):
         layers = []
 
         in_layer = p.fc.layers[0]
-        if in_layer.weight_bitwidth < 32:
-            layers.append(Module_Quantize(p.fc.qmode, in_layer.weight_bitwidth))
+        if in_layer.bitwidth < 32:
+            layers.append(Quantize(p.fc.qmode, in_layer.bitwidth))
 
         last_layer_height = in_layer.height
         for layer in p.fc.layers[1:]:

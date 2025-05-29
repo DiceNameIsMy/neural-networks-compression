@@ -3,10 +3,10 @@
 import torch
 
 from src.constants import DEVICE
-from src.models.quant.enums import QMode
+from src.models.compression.enums import QMode
 
 
-class Quantize(torch.autograd.function.InplaceFunction):
+class FnQuantize(torch.autograd.function.InplaceFunction):
     def forward(
         self, input: torch.Tensor, quant_mode=QMode.DET, numBits=4, inplace=False
     ):
@@ -29,21 +29,21 @@ class Quantize(torch.autograd.function.InplaceFunction):
 
         return output
 
-    def backward(grad_output, etain_graph=None, create_graph=False, inputs=None):
+    def backward(self, etain_graph=None, create_graph=False, inputs=None):
         # STE (Straight-Through Estimator)
         return (None, None, None)
 
 
-def quantize(input, quant_mode, numBits):
-    return Quantize.apply(input, quant_mode, numBits)
+def quantize(input, quant_mode, numBits) -> torch.Tensor:
+    return FnQuantize.apply(input, quant_mode, numBits)  # type: ignore
 
 
-class Module_Quantize(torch.nn.Module):
+class Quantize(torch.nn.Module):
     qmode: QMode
     num_bits: int
 
     def __init__(self, qmode: QMode, num_bits: int):
-        super(Module_Quantize, self).__init__()
+        super(Quantize, self).__init__()
         self.qmode = qmode
         self.num_bits = num_bits
 
@@ -51,7 +51,7 @@ class Module_Quantize(torch.nn.Module):
         return quantize(x, self.qmode, self.num_bits)
 
 
-class QuantizedWeightLinear(torch.nn.Linear):
+class LinearQunatized(torch.nn.Linear):
     def __init__(self, nbits: int, *kargs, **kwargs):
         super().__init__(*kargs, **kwargs)
         self.nbits = nbits
@@ -61,8 +61,7 @@ class QuantizedWeightLinear(torch.nn.Linear):
         out = torch.nn.functional.linear(input, weight_b)
         if self.bias is not None:
             self.bias.org = self.bias.data.clone()
-            bias_b = self.bias.view(1, -1).expand_as(out)
-            bias_b2 = quantize(self.bias, QMode.DET, self.nbits)
+            bias_b = quantize(self.bias, QMode.DET, self.nbits)
             out += bias_b
 
         return out

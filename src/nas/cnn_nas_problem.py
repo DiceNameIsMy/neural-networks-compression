@@ -11,10 +11,10 @@ from torch.utils import data
 
 from src.datasets.dataset import CnnDataset
 from src.models.cnn import CNN, CNNParams, ConvLayerParams, ConvParams
+from src.models.compression.enums import Activation, NNParamsCompMode, QMode
 from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
-from src.models.quant.enums import ActivationModule, QMode, WeightQuantMode
 from src.nas.cnn_chromosome import CNNChromosome, RawCNNChromosome
 from src.nas.nas_params import NasParams
 
@@ -112,7 +112,7 @@ class CnnNasProblem(ElementwiseProblem):
             in_bitwidth=ch.in_bitwidth,
             out_height=self.DatasetCls.output_size,
             layers=conv_layers,
-            weight_qmode=ch.weight_qmode,
+            compression=ch.weight_qmode,
             reste_threshold=ch.weight_reste_threshold,
             reste_o=ch.weight_reste_o,
             activation=activation,
@@ -146,18 +146,18 @@ class CnnNasProblem(ElementwiseProblem):
         layers = []
         if ch.fc_layers >= 1:
             layers.append(
-                FCLayerParams(ch.fc_height1, WeightQuantMode.NBITS, ch.fc_bitwidth1)
+                FCLayerParams(ch.fc_height1, NNParamsCompMode.NBITS, ch.fc_bitwidth1)
             )
         if ch.fc_layers >= 2:
             layers.append(
-                FCLayerParams(ch.fc_height2, WeightQuantMode.NBITS, ch.fc_bitwidth2)
+                FCLayerParams(ch.fc_height2, NNParamsCompMode.NBITS, ch.fc_bitwidth2)
             )
         if ch.fc_layers >= 3:
             layers.append(
-                FCLayerParams(ch.fc_height3, WeightQuantMode.NBITS, ch.fc_bitwidth3)
+                FCLayerParams(ch.fc_height3, NNParamsCompMode.NBITS, ch.fc_bitwidth3)
             )
         layers.append(
-            FCLayerParams(self.DatasetCls.output_size, WeightQuantMode.NONE, 32)
+            FCLayerParams(self.DatasetCls.output_size, NNParamsCompMode.NONE, 32)
         )
 
         return layers
@@ -200,14 +200,12 @@ class CnnNasProblem(ElementwiseProblem):
         prev_layer = p.fc.layers[0]
         for layer in p.fc.layers[1:]:
             mults = prev_layer.height * layer.height
-            bitwidth = prev_layer.weight_bitwidth
+            bitwidth = prev_layer.bitwidth
             fc_complexity += mults * (math.log2(max(2, bitwidth)) * 3)
 
             prev_layer = layer
 
-        activation_coef = (
-            3 if p.fc.activation.activation == ActivationModule.RELU else 1.2
-        )
+        activation_coef = 3 if p.fc.activation.activation == Activation.RELU else 1.2
         fc_complexity *= activation_coef
 
         complexity = 0

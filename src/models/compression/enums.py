@@ -6,15 +6,18 @@ class QMode(enum.Enum):
     STOCH = "stoch"
 
 
-class WeightQuantMode(enum.Enum):
+class NNParamsCompMode(enum.Enum):
+    """
+    Neural network parameters compression modes
+    """
+
     NONE = "none"
     NBITS = "nbits"
     BINARY = "binary"
-    BINARY_RESTE = "binary_reste"
     TERNARY = "ternary"
 
 
-class ActivationModule(enum.Enum):
+class Activation(enum.Enum):
     NONE = "none"
     RELU = "relu"
     BINARIZE = "binary"

@@ -2,7 +2,7 @@
 
 import torch
 
-from src.models.quant.conv import Conv2dWrapper
+from src.models.compression.conv import Conv2dWrapper
 
 
 def Alpha(tensor: torch.Tensor, delta):
@@ -36,7 +36,7 @@ def Delta(tensor: torch.Tensor):
     return delta
 
 
-def Binarize(tensor: torch.Tensor):
+def binarize(tensor: torch.Tensor):
     output = torch.zeros(tensor.size(), device=tensor.device)
     delta = 0
     alpha = Alpha(tensor, delta)
@@ -49,7 +49,7 @@ def Binarize(tensor: torch.Tensor):
     return output
 
 
-def Ternarize(tensor: torch.Tensor):
+def ternarize(tensor: torch.Tensor):
     output = torch.zeros(tensor.size(), device=tensor.device)
     delta = Delta(tensor)
     alpha = Alpha(tensor, delta)
@@ -83,11 +83,11 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
             weight.data.clone().detach()
         )  # save a copy of fp32 precision weight
         if quan_mode == "TERNARY":
-            weight.data[:, :, :, :] = Ternarize(weight.data.clone().detach())[
+            weight.data[:, :, :, :] = ternarize(weight.data.clone().detach())[
                 :, :, :, :
             ]  # do ternarization
         elif quan_mode == "BINARY":
-            weight.data[:, :, :, :] = Binarize(weight.data.clone().detach())[
+            weight.data[:, :, :, :] = binarize(weight.data.clone().detach())[
                 :, :, :, :
             ]  # do binarization
         else:
@@ -152,7 +152,7 @@ class Conv2DFunctionQUAN(torch.autograd.Function):
         )
 
 
-class TernaryConv2d(Conv2dWrapper):
+class Conv2dTernary(Conv2dWrapper):
     def __init__(
         self,
         in_channels,
@@ -188,7 +188,7 @@ class TernaryConv2d(Conv2dWrapper):
         )
 
 
-class BinaryConv2d(Conv2dWrapper):
+class Conv2dBinary(Conv2dWrapper):
     def __init__(
         self,
         in_channels,
@@ -224,27 +224,27 @@ class BinaryConv2d(Conv2dWrapper):
         )
 
 
-class Module_Binarize(torch.nn.Module):
+class Binarize(torch.nn.Module):
     """
     Module for binarizing the input.
     Uses variable alpha (output scaling) for each channel.
     """
 
     def forward(self, x):
-        return Binarize(x)
+        return binarize(x)
 
 
-class Module_Ternarize(torch.nn.Module):
+class Ternarize(torch.nn.Module):
     """
     Module for ternarizing the input.
     Uses variable alpha (output scaling) and delta (threshold value) for each channel.
     """
 
     def forward(self, x):
-        return Ternarize(x)
+        return ternarize(x)
 
 
-class TernarizeLinear(torch.nn.Linear):
+class LinearTernary(torch.nn.Linear):
     """
     Linear layer with ternarized weights and bias (if exists).
     """
@@ -253,7 +253,7 @@ class TernarizeLinear(torch.nn.Linear):
         super().__init__(*kargs, **kwargs)
 
     def forward(self, input):
-        weight_b = Ternarize(self.weight)
+        weight_b = ternarize(self.weight)
         out = torch.nn.functional.linear(input, weight_b)
         if self.bias is not None:
             self.bias.org = self.bias.data.clone()

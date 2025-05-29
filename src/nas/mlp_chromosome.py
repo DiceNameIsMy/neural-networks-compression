@@ -2,7 +2,7 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
-from src.models.quant.enums import ActivationModule, QMode
+from src.models.compression.enums import Activation, QMode
 from src.nas.chromosome import (
     ACTIVATION_MAPPING,
     BITWIDTHS_MAPPING,
@@ -30,7 +30,7 @@ class MLPChromosome:
 
     dropout: float
 
-    activation: ActivationModule
+    activation: Activation
     reste_o: float
 
     quatization_mode: QMode
@@ -42,7 +42,7 @@ class MLPChromosome:
 
 @dataclass
 class RawMLPChromosome:
-    x: np.ndarray[int]
+    x: np.ndarray
 
     def parse(self) -> MLPChromosome:
         x = list(self.x)
@@ -97,5 +97,5 @@ class RawMLPChromosome:
         return np.array(low), np.array(high)
 
     @staticmethod
-    def get_size() -> tuple[np.ndarray, np.ndarray]:
+    def get_size() -> int:
         return len(fields(MLPChromosome))

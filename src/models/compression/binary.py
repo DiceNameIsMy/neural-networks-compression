@@ -2,10 +2,10 @@
 
 import torch
 
-from src.models.quant.enums import QMode
+from src.models.compression.enums import QMode
 
 
-class Binarize(torch.autograd.function.InplaceFunction):
+class FnBinarize(torch.autograd.function.InplaceFunction):
     def forward(
         self,
         input: torch.Tensor,
@@ -46,10 +46,10 @@ class Binarize(torch.autograd.function.InplaceFunction):
 
 
 def binarize(input, quant_mode=QMode.DET):
-    return Binarize.apply(input, quant_mode)
+    return FnBinarize.apply(input, quant_mode)
 
 
-class Module_Binarize(torch.nn.Module):
+class Binarize(torch.nn.Module):
     """
     Module for binarizing the input.
     """
@@ -57,7 +57,7 @@ class Module_Binarize(torch.nn.Module):
     qmode: QMode
 
     def __init__(self, qmode=QMode.DET):
-        super(Module_Binarize, self).__init__()
+        super(Binarize, self).__init__()
         self.qmode = qmode
 
     def forward(self, x):
@@ -67,13 +67,13 @@ class Module_Binarize(torch.nn.Module):
         return f"Module_Binarize(qmode={self.qmode})"
 
 
-class BinarizeLinear(torch.nn.Linear):
+class LinearBinary(torch.nn.Linear):
     """
     Linear layer with binarized weights and bias (if exists).
     """
 
     def __init__(self, *kargs, **kwargs):
-        super(BinarizeLinear, self).__init__(*kargs, **kwargs)
+        super(LinearBinary, self).__init__(*kargs, **kwargs)
 
     def forward(self, input):
         weight_b = binarize(self.weight, QMode.DET)
