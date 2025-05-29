@@ -144,11 +144,6 @@ class CnnNasProblem(ElementwiseProblem):
 
     def _get_fc_layers(self, ch: CNNChromosome) -> list[FCLayerParams]:
         layers = []
-        layers.append(
-            FCLayerParams(
-                self.DatasetCls.input_size, WeightQuantMode.NBITS, ch.in_bitwidth
-            )
-        )
         if ch.fc_layers >= 1:
             layers.append(
                 FCLayerParams(ch.fc_height1, WeightQuantMode.NBITS, ch.fc_bitwidth1)

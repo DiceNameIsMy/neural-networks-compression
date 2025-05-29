@@ -207,13 +207,8 @@ class CNN(nn.Module):
 
         layers = []
 
-        in_layer = p.fc.layers[0]
-        in_layer.height = (
-            fc_in_height  # IMPORTANT: in_height is dependant on conv layers.
-        )
-
-        last_layer_height = in_layer.height
-        for hidden in p.fc.layers[1:-1]:
+        last_layer_height = fc_in_height
+        for hidden in p.fc.layers[:-1]:
             layers.append(hidden.get_fc_layer(last_layer_height))
             layers.append(nn.BatchNorm1d(hidden.height))
 
