@@ -1,4 +1,4 @@
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from typing import Generic, TypeVar
 
 import numpy as np
@@ -31,8 +31,8 @@ WEIGHT_DECAY_MAPPING = (
 DROPOUT_MAPPING = (0.0, 0.1, 0.2)
 
 
-def with_options(options: tuple) -> dict:
-    return {"default_options": options}
+def with_options(options: tuple):
+    return field(metadata={"default_options": options})
 
 
 @dataclass
@@ -67,7 +67,7 @@ class ChromosomeConfig(Generic[T]):
             assert isinstance(options, tuple)
             self.options[f.name] = options
 
-        # Setup options overrides
+        # Setup option overrides
         self.options_override = override or {}
 
         for key, _ in self.options_override.items():

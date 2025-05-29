@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from src.models.compression.enums import Activation, NNParamsCompMode, QMode
 from src.nas.chromosome import (
@@ -25,39 +25,35 @@ FC_HEIGHTS_MAPPING = (16, 32, 64, 128)
 
 @dataclass
 class CNNChromosome(Chromosome):
-    in_bitwidth: int = field(metadata=with_options(BITWIDTHS_MAPPING))
+    in_bitwidth: int = with_options(BITWIDTHS_MAPPING)
 
-    conv_layers: int = field(metadata=with_options(CONV_LAYERS_MAPPING))
-    conv_channels1: int = field(metadata=with_options(CONV_CHANNELS_MAPPING))
-    conv_stride1: int = field(metadata=with_options(CONV_STRIDES_MAPPING))
-    conv_pooling_size1: int = field(metadata=with_options(CONV_POOLING_SIZES_MAPPING))
-    conv_channels2: int = field(metadata=with_options(CONV_CHANNELS_MAPPING))
-    conv_stride2: int = field(metadata=with_options(CONV_STRIDES_MAPPING))
-    conv_pooling_size2: int = field(metadata=with_options(CONV_POOLING_SIZES_MAPPING))
-    conv_channels3: int = field(metadata=with_options(CONV_CHANNELS_MAPPING))
-    conv_stride3: int = field(metadata=with_options(CONV_STRIDES_MAPPING))
-    conv_pooling_size3: int = field(metadata=with_options(CONV_POOLING_SIZES_MAPPING))
+    conv_layers: int = with_options(CONV_LAYERS_MAPPING)
+    conv_channels1: int = with_options(CONV_CHANNELS_MAPPING)
+    conv_stride1: int = with_options(CONV_STRIDES_MAPPING)
+    conv_pooling_size1: int = with_options(CONV_POOLING_SIZES_MAPPING)
+    conv_channels2: int = with_options(CONV_CHANNELS_MAPPING)
+    conv_stride2: int = with_options(CONV_STRIDES_MAPPING)
+    conv_pooling_size2: int = with_options(CONV_POOLING_SIZES_MAPPING)
+    conv_channels3: int = with_options(CONV_CHANNELS_MAPPING)
+    conv_stride3: int = with_options(CONV_STRIDES_MAPPING)
+    conv_pooling_size3: int = with_options(CONV_POOLING_SIZES_MAPPING)
 
-    fc_layers: int = field(metadata=with_options(FC_LAYERS_MAPPING))
-    fc_height1: int = field(metadata=with_options(FC_HEIGHTS_MAPPING))
-    fc_bitwidth1: int = field(metadata=with_options(BITWIDTHS_MAPPING))
-    fc_height2: int = field(metadata=with_options(FC_HEIGHTS_MAPPING))
-    fc_bitwidth2: int = field(metadata=with_options(BITWIDTHS_MAPPING))
-    fc_height3: int = field(metadata=with_options(FC_HEIGHTS_MAPPING))
-    fc_bitwidth3: int = field(metadata=with_options(BITWIDTHS_MAPPING))
+    fc_layers: int = with_options(FC_LAYERS_MAPPING)
+    fc_height1: int = with_options(FC_HEIGHTS_MAPPING)
+    fc_bitwidth1: int = with_options(BITWIDTHS_MAPPING)
+    fc_height2: int = with_options(FC_HEIGHTS_MAPPING)
+    fc_bitwidth2: int = with_options(BITWIDTHS_MAPPING)
+    fc_height3: int = with_options(FC_HEIGHTS_MAPPING)
+    fc_bitwidth3: int = with_options(BITWIDTHS_MAPPING)
 
-    dropout: float = field(metadata=with_options(DROPOUT_MAPPING))
+    dropout: float = with_options(DROPOUT_MAPPING)
 
-    compression: NNParamsCompMode = field(
-        metadata=with_options(NN_PARAMS_COMP_MODE_MAPPING)
-    )
+    compression: NNParamsCompMode = with_options(NN_PARAMS_COMP_MODE_MAPPING)
 
-    activation: Activation = field(metadata=with_options(ACTIVATION_MAPPING))
-    activation_qmode: QMode = field(metadata=with_options(QMODE_MAPPING))
-    activation_reste_o: float = field(metadata=with_options(RESTE_O_MAPPING))
-    activation_reste_threshold: float = field(
-        metadata=with_options(RESTE_THRESHOLD_MAPPING)
-    )
+    activation: Activation = with_options(ACTIVATION_MAPPING)
+    activation_qmode: QMode = with_options(QMODE_MAPPING)
+    activation_reste_o: float = with_options(RESTE_O_MAPPING)
+    activation_reste_threshold: float = with_options(RESTE_THRESHOLD_MAPPING)
 
-    learning_rate: float = field(metadata=with_options(LEARNING_RATES_MAPPING))
-    weight_decay: float = field(metadata=with_options(WEIGHT_DECAY_MAPPING))
+    learning_rate: float = with_options(LEARNING_RATES_MAPPING)
+    weight_decay: float = with_options(WEIGHT_DECAY_MAPPING)
