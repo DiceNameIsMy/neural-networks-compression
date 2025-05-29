@@ -18,19 +18,33 @@ class NNArchitectureEvaluator:
 
     criterion: nn.CrossEntropyLoss
 
-    min_loss = float("inf")
-    epochs_without_improvements = 0
-
     def __init__(self, params: MLPParams | CNNParams):
         self.p = params
         self.criterion = nn.CrossEntropyLoss()
 
-    def train_model(self, model: nn.Module):
-        training_log = []
+    def evaluate_model(self, times=1):
+        best_model = None
+        accuracies = []
+        for _ in range(times):
+            model = self.p.get_model().to(DEVICE)
+            model = self.train_model(model)
+            acc = self.test_model(model)
+            if best_model is None or acc > max(accuracies):
+                best_model = model
 
-        # Reset early stopping parameters
-        self.min_loss = float("inf")
-        self.epochs_without_improvements = 0
+            accuracies.append(acc)
+
+        return {
+            "max": max(accuracies),
+            "mean": np.mean(accuracies),
+            "std": np.std(accuracies),
+            "accuracies": accuracies,
+            "best_model": best_model,
+        }
+
+    def train_model(self, model: nn.Module):
+        min_loss = float("inf")
+        without_improvements = 0
 
         # TODO: Can be made customizable
         optimizer = optim.Adam(
@@ -39,36 +53,31 @@ class NNArchitectureEvaluator:
             weight_decay=self.p.train.weight_decay,
         )
 
-        # best_model = copy.deepcopy(model)
+        best_acc = 0.0
+        best_model = None
         for epoch in range(1, self.p.train.epochs + 1):
+            # Train for one epoch
             loss = self.train_epoch(model, optimizer, epoch)
-            accuracy = self.test_model(model)
+            acc = self.test_model(model)
 
-            training_log.append(
-                {
-                    "epoch": epoch,
-                    "loss": loss,
-                    "accuracy": accuracy,
-                }
-            )
+            # Remember best model
+            if best_model is None or acc > best_acc:
+                best_model = model
 
-            if self.should_stop_early(loss):
+            # Stop early if needed
+            if loss < min_loss:
+                min_loss = loss
+                without_improvements = 0
+            else:
+                without_improvements += 1
+
+            should_stop_early = without_improvements >= self.p.train.early_stop_patience
+            if should_stop_early:
                 logger.debug(f"Early stopping triggered after {epoch + 1} epochs")
                 break
 
-        return training_log
-
-    def should_stop_early(self, loss: float) -> bool:
-        if loss < self.min_loss:
-            self.min_loss = loss
-            self.epochs_without_improvements = 0
-        else:
-            self.epochs_without_improvements += 1
-
-        should_stop_early = (
-            self.epochs_without_improvements >= self.p.train.early_stop_patience
-        )
-        return should_stop_early
+        assert best_model is not None
+        return best_model
 
     def train_epoch(
         self,
@@ -81,10 +90,14 @@ class NNArchitectureEvaluator:
         amount_of_batches = len(self.p.train.train_loader)
         amount_of_datapoints = len(self.p.train.train_loader.dataset)
 
+        # Log progress every 25% of the batches
+        log_progress_after = amount_of_batches // 4
+        log_progress_counter = 0
+
         trained_on = 0
         loss_sum = 0
-        for batch_idx, (data, target) in enumerate(self.p.train.train_loader):
-            data, target = data.to(DEVICE), target.to(DEVICE)
+        for batch_idx, (_data, _target) in enumerate(self.p.train.train_loader):
+            data, target = _data.to(DEVICE), _target.to(DEVICE)
 
             # Forward pass
             outputs = model(data)
@@ -97,7 +110,12 @@ class NNArchitectureEvaluator:
             optimizer.step()
 
             trained_on += self.p.train.test_loader.batch_size
-            if batch_idx % 5 == 0:
+
+            # Log progress
+            log_progress_counter += 1
+            if log_progress_counter == log_progress_after:
+                log_progress_counter = 0
+
                 logger.debug(
                     f"Train Epoch: {epoch_no:>2} [{trained_on:>4}/{amount_of_datapoints}] Loss: {loss.item():.4f}"
                 )
@@ -111,8 +129,8 @@ class NNArchitectureEvaluator:
 
         loss_sum = 0
         correct = 0
-        for data, target in self.p.train.test_loader:
-            data, target = data.to(DEVICE), target.to(DEVICE)
+        for _data, _target in self.p.train.test_loader:
+            data, target = _data.to(DEVICE), _target.to(DEVICE)
             outputs = model(data)
 
             loss = self.criterion(outputs, target)
@@ -129,33 +147,10 @@ class NNArchitectureEvaluator:
         accuracy = 100.0 * correct / amount_of_datapoints
 
         logger.debug(
-            "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)".format(
-                average_loss, correct, amount_of_datapoints, accuracy
-            )
+            f"Test set: Average loss: {average_loss:.4f}, Accuracy: {correct}/{amount_of_datapoints} ({accuracy:.2f}%)"
         )
 
         return accuracy
-
-    def evaluate_model(self, times=1):
-        best_model = None
-        accuracies = []
-        for _ in range(times):
-            model = self.p.get_model().to(DEVICE)
-            self.train_model(model)
-
-            acc = self.test_model(model)
-            if best_model is None or acc > max(accuracies):
-                best_model = model
-
-            accuracies.append(acc)
-
-        return {
-            "max": max(accuracies),
-            "mean": np.mean(accuracies),
-            "std": np.std(accuracies),
-            "accuracies": accuracies,
-            "best_model": best_model,
-        }
 
 
 class KFoldNNArchitectureEvaluator:
