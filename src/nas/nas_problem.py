@@ -12,8 +12,7 @@ from src.datasets.dataset import CnnDataset, MlpDataset
 from src.models.cnn import CNN, CNNParams
 from src.models.eval import KFoldNNArchitectureEvaluator
 from src.models.mlp import MLP, MLPParams
-from src.nas.cnn_chromosome import CNNChromosome
-from src.nas.mlp_chromosome import MLPChromosome
+from src.nas.chromosome import Chromosome, ChromosomeConfig
 from src.nas.nas_params import NasParams
 
 logger = logging.getLogger(__name__)
@@ -29,10 +28,9 @@ class NasProblem(ElementwiseProblem):
     #       It's reduntant, although only a small % of NAS is spent on that.
 
     p: NasParams
-
-    ChromosomeCls: type[MLPChromosome | CNNChromosome]
-
+    chromosome_cfg: ChromosomeConfig
     DatasetCls: type[MlpDataset | CnnDataset]
+
     train_loader: data.DataLoader
     test_loader: data.DataLoader
 
@@ -41,24 +39,27 @@ class NasProblem(ElementwiseProblem):
     def __init__(
         self,
         params: NasParams,
-        ChromosomeCls: type[MLPChromosome | CNNChromosome],
         DatasetCls: type[MlpDataset | CnnDataset],
+        ChromosomeCls: type[Chromosome],
+        chromosome_options_override: dict[str, tuple] | None = None,
     ):
-        x_low, x_high = ChromosomeCls.get_bounds()
-        super().__init__(
-            n_var=ChromosomeCls.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
-        )  # Part of a workaround to the rounding problem
-
         self.p = params
         self.DatasetCls = DatasetCls
-        self.ChromosomeCls = ChromosomeCls
+        self.chromosome_cfg = ChromosomeConfig(
+            ChromosomeCls, override=chromosome_options_override
+        )
         self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders(
             self.p.batch_size
         )
         self.best_models = {}
 
+        x_low, x_high = self.chromosome_cfg.get_bounds()
+        super().__init__(
+            n_var=self.chromosome_cfg.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
+        )  # Part of a workaround to the rounding problem
+
     def _evaluate(self, x, out, *args, **kwargs):
-        ch = self.ChromosomeCls.parse(x)
+        ch = self.chromosome_cfg.decode(x)
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
@@ -104,23 +105,23 @@ class NasProblem(ElementwiseProblem):
             self.best_models.pop(worst_key)
             self.best_models[tuple(x)] = (accuracy, model)
 
-    def get_nn_params(self, ch: MLPChromosome | CNNChromosome) -> MLPParams | CNNParams:
+    def get_nn_params(self, ch: Chromosome) -> MLPParams | CNNParams:
         raise NotImplementedError(
             "get_nn_params method must be implemented in the subclass"
         )
 
     @lru_cache(maxsize=1)
     def get_min_complexity(self) -> float:
-        x = self.ChromosomeCls.get_bounds()[0]
-        ch = self.ChromosomeCls.parse(x)
+        x = self.chromosome_cfg.get_bounds()[0]
+        ch = self.chromosome_cfg.decode(x)
         params = self.get_nn_params(ch)
         complexity = params.get_complexity()
         return complexity
 
     @lru_cache(maxsize=1)
     def get_max_complexity(self) -> float:
-        x = self.ChromosomeCls.get_bounds()[1]
-        ch = self.ChromosomeCls.parse(x)
+        x = self.chromosome_cfg.get_bounds()[1]
+        ch = self.chromosome_cfg.decode(x)
         params = self.get_nn_params(ch)
         complexity = params.get_complexity()
         return complexity
@@ -153,7 +154,7 @@ class NasProblem(ElementwiseProblem):
                 f[1], self.get_min_complexity(), self.get_max_complexity()
             )
 
-            ch = self.ChromosomeCls.parse(x)
+            ch = self.chromosome_cfg.decode(x)
             params = self.get_nn_params(ch)
 
             data.append(

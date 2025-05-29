@@ -1,6 +1,4 @@
-from dataclasses import dataclass, fields
-
-import numpy as np
+from dataclasses import dataclass, field
 
 from src.models.compression.enums import Activation, NNParamsCompMode, QMode
 from src.nas.chromosome import (
@@ -13,6 +11,8 @@ from src.nas.chromosome import (
     RESTE_O_MAPPING,
     RESTE_THRESHOLD_MAPPING,
     WEIGHT_DECAY_MAPPING,
+    Chromosome,
+    with_options,
 )
 
 CONV_LAYERS_MAPPING = (1, 2, 3)
@@ -24,133 +24,40 @@ FC_HEIGHTS_MAPPING = (16, 32, 64, 128)
 
 
 @dataclass
-class CNNChromosome:
-    in_bitwidth: int
+class CNNChromosome(Chromosome):
+    in_bitwidth: int = field(metadata=with_options(BITWIDTHS_MAPPING))
 
-    conv_layers: int
-    conv_channels1: int
-    conv_stride1: int
-    conv_pooling_size1: int
-    conv_channels2: int
-    conv_stride2: int
-    conv_pooling_size2: int
-    conv_channels3: int
-    conv_stride3: int
-    conv_pooling_size3: int
+    conv_layers: int = field(metadata=with_options(CONV_LAYERS_MAPPING))
+    conv_channels1: int = field(metadata=with_options(CONV_CHANNELS_MAPPING))
+    conv_stride1: int = field(metadata=with_options(CONV_STRIDES_MAPPING))
+    conv_pooling_size1: int = field(metadata=with_options(CONV_POOLING_SIZES_MAPPING))
+    conv_channels2: int = field(metadata=with_options(CONV_CHANNELS_MAPPING))
+    conv_stride2: int = field(metadata=with_options(CONV_STRIDES_MAPPING))
+    conv_pooling_size2: int = field(metadata=with_options(CONV_POOLING_SIZES_MAPPING))
+    conv_channels3: int = field(metadata=with_options(CONV_CHANNELS_MAPPING))
+    conv_stride3: int = field(metadata=with_options(CONV_STRIDES_MAPPING))
+    conv_pooling_size3: int = field(metadata=with_options(CONV_POOLING_SIZES_MAPPING))
 
-    fc_layers: int
-    fc_height1: int
-    fc_bitwidth1: int
-    fc_height2: int
-    fc_bitwidth2: int
-    fc_height3: int
-    fc_bitwidth3: int
+    fc_layers: int = field(metadata=with_options(FC_LAYERS_MAPPING))
+    fc_height1: int = field(metadata=with_options(FC_HEIGHTS_MAPPING))
+    fc_bitwidth1: int = field(metadata=with_options(BITWIDTHS_MAPPING))
+    fc_height2: int = field(metadata=with_options(FC_HEIGHTS_MAPPING))
+    fc_bitwidth2: int = field(metadata=with_options(BITWIDTHS_MAPPING))
+    fc_height3: int = field(metadata=with_options(FC_HEIGHTS_MAPPING))
+    fc_bitwidth3: int = field(metadata=with_options(BITWIDTHS_MAPPING))
 
-    dropout: float
+    dropout: float = field(metadata=with_options(DROPOUT_MAPPING))
 
-    compression: NNParamsCompMode
+    compression: NNParamsCompMode = field(
+        metadata=with_options(NN_PARAMS_COMP_MODE_MAPPING)
+    )
 
-    activation: Activation
-    activation_qmode: QMode
-    activation_reste_o: float
-    activation_reste_threshold: float
+    activation: Activation = field(metadata=with_options(ACTIVATION_MAPPING))
+    activation_qmode: QMode = field(metadata=with_options(QMODE_MAPPING))
+    activation_reste_o: float = field(metadata=with_options(RESTE_O_MAPPING))
+    activation_reste_threshold: float = field(
+        metadata=with_options(RESTE_THRESHOLD_MAPPING)
+    )
 
-    learning_rate: float
-    weight_decay: float
-
-    @staticmethod
-    def parse(encoded: list[int]) -> "CNNChromosome":
-        x = list(encoded)
-        try:
-            ch = CNNChromosome(
-                in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
-                # Conv layers
-                conv_layers=CONV_LAYERS_MAPPING[x.pop(0)],
-                conv_channels1=CONV_CHANNELS_MAPPING[x.pop(0)],
-                conv_stride1=CONV_STRIDES_MAPPING[x.pop(0)],
-                conv_pooling_size1=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
-                conv_channels2=CONV_CHANNELS_MAPPING[x.pop(0)],
-                conv_stride2=CONV_STRIDES_MAPPING[x.pop(0)],
-                conv_pooling_size2=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
-                conv_channels3=CONV_CHANNELS_MAPPING[x.pop(0)],
-                conv_stride3=CONV_STRIDES_MAPPING[x.pop(0)],
-                conv_pooling_size3=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
-                # FC layers
-                fc_layers=FC_LAYERS_MAPPING[x.pop(0)],
-                fc_height1=FC_HEIGHTS_MAPPING[x.pop(0)],
-                fc_bitwidth1=BITWIDTHS_MAPPING[x.pop(0)],
-                fc_height2=FC_HEIGHTS_MAPPING[x.pop(0)],
-                fc_bitwidth2=BITWIDTHS_MAPPING[x.pop(0)],
-                fc_height3=FC_HEIGHTS_MAPPING[x.pop(0)],
-                fc_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
-                # Other
-                dropout=DROPOUT_MAPPING[x.pop(0)],
-                compression=NN_PARAMS_COMP_MODE_MAPPING[x.pop(0)],
-                activation=ACTIVATION_MAPPING[x.pop(0)],
-                activation_qmode=QMODE_MAPPING[x.pop(0)],
-                activation_reste_o=RESTE_O_MAPPING[x.pop(0)],
-                activation_reste_threshold=RESTE_THRESHOLD_MAPPING[x.pop(0)],
-                learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
-                weight_decay=WEIGHT_DECAY_MAPPING[x.pop(0)],
-            )
-            return ch
-        except IndexError as e:
-            genes_parsed = len(encoded) - len(x)
-            total_genes = len(encoded)
-            raise ValueError(
-                f"Invalid chromosome encoding. Failed to parse gene at position {genes_parsed} of {total_genes}. "
-                f"Remaining unparsed genes: {x}."
-            ) from e
-
-    @staticmethod
-    def get_bounds() -> tuple[np.ndarray, np.ndarray]:
-        bitwidth_bounds = (0, len(BITWIDTHS_MAPPING) - 1)
-        conv_channels_bounds = (0, len(CONV_CHANNELS_MAPPING) - 1)
-        conv_stride_bounds = (0, len(CONV_STRIDES_MAPPING) - 1)
-        conv_pooling_bounds = (0, len(CONV_POOLING_SIZES_MAPPING) - 1)
-        fc_height_bounds = (1, len(FC_HEIGHTS_MAPPING) - 1)
-        bounds = (
-            bitwidth_bounds,
-            # Conv layers config
-            (0, len(CONV_LAYERS_MAPPING) - 1),
-            conv_channels_bounds,
-            conv_stride_bounds,
-            conv_pooling_bounds,
-            conv_channels_bounds,
-            conv_stride_bounds,
-            conv_pooling_bounds,
-            conv_channels_bounds,
-            conv_stride_bounds,
-            conv_pooling_bounds,
-            # FC layers config
-            (0, len(FC_LAYERS_MAPPING) - 1),
-            fc_height_bounds,
-            bitwidth_bounds,
-            fc_height_bounds,
-            bitwidth_bounds,
-            fc_height_bounds,
-            bitwidth_bounds,
-            #
-            (0, len(DROPOUT_MAPPING) - 1),
-            # Layer compression
-            (0, len(NN_PARAMS_COMP_MODE_MAPPING) - 1),
-            # Activation
-            (0, len(ACTIVATION_MAPPING) - 1),
-            (0, len(QMODE_MAPPING) - 1),
-            (0, len(RESTE_O_MAPPING) - 1),
-            (0, len(RESTE_THRESHOLD_MAPPING) - 1),
-            # Hyperparameters
-            (0, len(LEARNING_RATES_MAPPING) - 1),
-            (0, len(WEIGHT_DECAY_MAPPING) - 1),
-        )
-        low, high = np.column_stack(bounds)
-
-        size = CNNChromosome.get_size()
-        assert size == len(low)
-        assert size == len(high)
-
-        return np.array(low, dtype=int), np.array(high, dtype=int)
-
-    @staticmethod
-    def get_size() -> int:
-        return len(fields(CNNChromosome))
+    learning_rate: float = field(metadata=with_options(LEARNING_RATES_MAPPING))
+    weight_decay: float = field(metadata=with_options(WEIGHT_DECAY_MAPPING))

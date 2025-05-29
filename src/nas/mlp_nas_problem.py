@@ -20,11 +20,11 @@ class MlpNasProblem(NasProblem):
     # NOTE: On every evaluation a new set of dataloaders is created.
     #       It's reduntant, although only a small % of NAS is spent on that.
 
-    ChromosomeCls: type[MLPChromosome]
     DatasetCls: type[MlpDataset]
+    ChromosomeCls: type[MLPChromosome]
 
     def __init__(self, params: NasParams, DatasetCls: type[MlpDataset]):
-        super().__init__(params, MLPChromosome, DatasetCls)
+        super().__init__(params, DatasetCls, MLPChromosome)
 
     def get_nn_params(self, ch: MLPChromosome) -> MLPParams:
         activation = ActivationParams(

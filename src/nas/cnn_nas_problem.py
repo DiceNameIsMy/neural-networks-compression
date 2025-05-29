@@ -27,7 +27,7 @@ class CnnNasProblem(NasProblem):
     DatasetCls: type[CnnDataset]
 
     def __init__(self, params: NasParams, DatasetCls: type[CnnDataset]):
-        super().__init__(params, CNNChromosome, DatasetCls)
+        super().__init__(params, DatasetCls, CNNChromosome)
 
     def get_nn_params(self, ch: CNNChromosome) -> CNNParams:
         activation = ActivationParams(
