@@ -59,40 +59,48 @@ class CNNChromosome:
     weight_decay: float
 
     @staticmethod
-    def parse(encoded: np.ndarray) -> "CNNChromosome":
+    def parse(encoded: list[int]) -> "CNNChromosome":
         x = list(encoded)
-        ch = CNNChromosome(
-            in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
-            # Conv layers
-            conv_layers=CONV_LAYERS_MAPPING[x.pop(0)],
-            conv_channels1=CONV_CHANNELS_MAPPING[x.pop(0)],
-            conv_stride1=CONV_STRIDES_MAPPING[x.pop(0)],
-            conv_pooling_size1=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
-            conv_channels2=CONV_CHANNELS_MAPPING[x.pop(0)],
-            conv_stride2=CONV_STRIDES_MAPPING[x.pop(0)],
-            conv_pooling_size2=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
-            conv_channels3=CONV_CHANNELS_MAPPING[x.pop(0)],
-            conv_stride3=CONV_STRIDES_MAPPING[x.pop(0)],
-            conv_pooling_size3=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
-            # FC layers
-            fc_layers=FC_LAYERS_MAPPING[x.pop(0)],
-            fc_height1=FC_HEIGHTS_MAPPING[x.pop(0)],
-            fc_bitwidth1=BITWIDTHS_MAPPING[x.pop(0)],
-            fc_height2=FC_HEIGHTS_MAPPING[x.pop(0)],
-            fc_bitwidth2=BITWIDTHS_MAPPING[x.pop(0)],
-            fc_height3=FC_HEIGHTS_MAPPING[x.pop(0)],
-            fc_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
-            # Other
-            dropout=DROPOUT_MAPPING[x.pop(0)],
-            compression=NN_PARAMS_COMP_MODE_MAPPING[x.pop(0)],
-            activation=ACTIVATION_MAPPING[x.pop(0)],
-            activation_qmode=QMODE_MAPPING[x.pop(0)],
-            activation_reste_o=RESTE_O_MAPPING[x.pop(0)],
-            activation_reste_threshold=RESTE_THRESHOLD_MAPPING[x.pop(0)],
-            learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
-            weight_decay=WEIGHT_DECAY_MAPPING[x.pop(0)],
-        )
-        return ch
+        try:
+            ch = CNNChromosome(
+                in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
+                # Conv layers
+                conv_layers=CONV_LAYERS_MAPPING[x.pop(0)],
+                conv_channels1=CONV_CHANNELS_MAPPING[x.pop(0)],
+                conv_stride1=CONV_STRIDES_MAPPING[x.pop(0)],
+                conv_pooling_size1=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
+                conv_channels2=CONV_CHANNELS_MAPPING[x.pop(0)],
+                conv_stride2=CONV_STRIDES_MAPPING[x.pop(0)],
+                conv_pooling_size2=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
+                conv_channels3=CONV_CHANNELS_MAPPING[x.pop(0)],
+                conv_stride3=CONV_STRIDES_MAPPING[x.pop(0)],
+                conv_pooling_size3=CONV_POOLING_SIZES_MAPPING[x.pop(0)],
+                # FC layers
+                fc_layers=FC_LAYERS_MAPPING[x.pop(0)],
+                fc_height1=FC_HEIGHTS_MAPPING[x.pop(0)],
+                fc_bitwidth1=BITWIDTHS_MAPPING[x.pop(0)],
+                fc_height2=FC_HEIGHTS_MAPPING[x.pop(0)],
+                fc_bitwidth2=BITWIDTHS_MAPPING[x.pop(0)],
+                fc_height3=FC_HEIGHTS_MAPPING[x.pop(0)],
+                fc_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
+                # Other
+                dropout=DROPOUT_MAPPING[x.pop(0)],
+                compression=NN_PARAMS_COMP_MODE_MAPPING[x.pop(0)],
+                activation=ACTIVATION_MAPPING[x.pop(0)],
+                activation_qmode=QMODE_MAPPING[x.pop(0)],
+                activation_reste_o=RESTE_O_MAPPING[x.pop(0)],
+                activation_reste_threshold=RESTE_THRESHOLD_MAPPING[x.pop(0)],
+                learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
+                weight_decay=WEIGHT_DECAY_MAPPING[x.pop(0)],
+            )
+            return ch
+        except IndexError as e:
+            genes_parsed = len(encoded) - len(x)
+            total_genes = len(encoded)
+            raise ValueError(
+                f"Invalid chromosome encoding. Failed to parse gene at position {genes_parsed} of {total_genes}. "
+                f"Remaining unparsed genes: {x}."
+            ) from e
 
     @staticmethod
     def get_bounds() -> tuple[np.ndarray, np.ndarray]:

@@ -15,6 +15,7 @@ from src.nas.chromosome import (
 )
 
 MLP_HIDDEN_LAYERS_MAPPING = (0, 1, 2, 3)
+HIDDEN_LAYER_HEIGHTS_MAPPING = (6, 7, 8, 12, 16, 24, 32)
 
 
 @dataclass
@@ -36,9 +37,8 @@ class MLPChromosome:
     compression: NNParamsCompMode
     activation: Activation
     reste_o: float
-
-    quatization_mode: QMode
-    binarization_mode: QMode
+    parameters_quantization_mode: QMode
+    activation_binarization_mode: QMode
 
     # Training
     dropout: float
@@ -51,19 +51,19 @@ class MLPChromosome:
         ch = MLPChromosome(
             in_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
             hidden_layers=MLP_HIDDEN_LAYERS_MAPPING[x.pop(0)],
-            hidden_height1=x.pop(0),
+            hidden_height1=HIDDEN_LAYER_HEIGHTS_MAPPING[x.pop(0)],
             hidden_bitwidth1=BITWIDTHS_MAPPING[x.pop(0)],
-            hidden_height2=x.pop(0),
+            hidden_height2=HIDDEN_LAYER_HEIGHTS_MAPPING[x.pop(0)],
             hidden_bitwidth2=BITWIDTHS_MAPPING[x.pop(0)],
-            hidden_height3=x.pop(0),
+            hidden_height3=HIDDEN_LAYER_HEIGHTS_MAPPING[x.pop(0)],
             hidden_bitwidth3=BITWIDTHS_MAPPING[x.pop(0)],
             output_bitwidth=BITWIDTHS_MAPPING[x.pop(0)],
             # Compression
             compression=NN_PARAMS_COMP_MODE_MAPPING[x.pop(0)],
             activation=ACTIVATION_MAPPING[x.pop(0)],
             reste_o=RESTE_O_MAPPING[x.pop(0)],
-            quatization_mode=QMODE_MAPPING[x.pop(0)],
-            binarization_mode=QMODE_MAPPING[x.pop(0)],
+            parameters_quantization_mode=QMODE_MAPPING[x.pop(0)],
+            activation_binarization_mode=QMODE_MAPPING[x.pop(0)],
             #
             dropout=DROPOUT_MAPPING[x.pop(0)],
             learning_rate=LEARNING_RATES_MAPPING[x.pop(0)],
@@ -73,7 +73,7 @@ class MLPChromosome:
 
     @staticmethod
     def get_bounds() -> tuple[np.ndarray, np.ndarray]:
-        layer_height_bounds = (1, 8)
+        layer_height_bounds = (1, len(HIDDEN_LAYER_HEIGHTS_MAPPING) - 1)
         layer_bitwidth_bounds = (0, len(BITWIDTHS_MAPPING) - 1)
         bounds = (
             layer_bitwidth_bounds,

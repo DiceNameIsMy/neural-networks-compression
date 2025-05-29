@@ -60,7 +60,7 @@ class FnBinarizeWithReSTE(torch.autograd.Function):
 
 
 class BinarizeWithReSTE(torch.nn.Module):
-    def __init__(self, threshold: float = 1.5, o: float = 1):
+    def __init__(self, threshold: float = 1.5, o: float = 3):
         super().__init__()
         self.threshold = torch.tensor(threshold).float()
         self.o = torch.tensor(o).float()

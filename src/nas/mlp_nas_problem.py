@@ -1,25 +1,17 @@
 import logging
-from dataclasses import asdict
-from functools import lru_cache
-
-import numpy as np
-import pandas as pd
-from pymoo.core.problem import ElementwiseProblem
-from pymoo.core.result import Result
-from torch.utils import data
 
 from src.datasets.dataset import MlpDataset
 from src.models.compression.enums import NNParamsCompMode
-from src.models.eval import KFoldNNArchitectureEvaluator
-from src.models.mlp import MLP, FCLayerParams, FCParams, MLPParams
+from src.models.mlp import FCLayerParams, FCParams, MLPParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.nas.mlp_chromosome import MLPChromosome
 from src.nas.nas_params import NasParams
+from src.nas.nas_problem import NasProblem
 
 logger = logging.getLogger(__name__)
 
 
-class MlpNasProblem(ElementwiseProblem):
+class MlpNasProblem(NasProblem):
     # TODO: It it better to use best accuracy instead of mean
     #       accuracy as an optimization goal? Or perhaps I should
     #       keep using both, but then train the final population
@@ -28,71 +20,23 @@ class MlpNasProblem(ElementwiseProblem):
     # NOTE: On every evaluation a new set of dataloaders is created.
     #       It's reduntant, although only a small % of NAS is spent on that.
 
-    p: NasParams
+    ChromosomeCls: type[MLPChromosome]
     DatasetCls: type[MlpDataset]
-    train_loader: data.DataLoader
-    test_loader: data.DataLoader
-
-    best_models: dict[tuple[int], tuple[float, MLP]]
 
     def __init__(self, params: NasParams, DatasetCls: type[MlpDataset]):
-        x_low, x_high = MLPChromosome.get_bounds()
-        super().__init__(
-            n_var=MLPChromosome.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
-        )  # Part of a workaround to the rounding problem
-
-        self.p = params
-        self.DatasetCls = DatasetCls
-        self.train_loader, self.test_loader = self.DatasetCls.get_dataloaders(
-            self.p.batch_size
-        )
-        self.best_models = {}
-
-    def _evaluate(self, x, out, *args, **kwargs):
-        ch = MLPChromosome.parse(x)
-        params = self.get_nn_params(ch)
-        logger.debug(f"Evaluating {params}")
-
-        # Maximize accuracy
-        evaluator = KFoldNNArchitectureEvaluator(params)
-        stats = evaluator.evaluate_accuracy(times=self.p.amount_of_evaluations)
-        f1 = -self.normalize(stats["max"], 0, 100)
-
-        # Minimize NN complexity
-        complexity = params.get_complexity()
-        f2 = self.normalize(
-            complexity, self.get_min_complexity(), self.get_max_complexity()
-        )
-
-        out["F"] = [f1, f2]
-
-        self.store_model_if_is_is_good(x, stats["max"], stats["best_model"])
-
-    def store_model_if_is_is_good(self, x: np.ndarray, accuracy: float, model: MLP):
-        if len(self.best_models) < self.p.population_size:
-            # Store the best model for this chromosome
-            self.best_models[tuple(x)] = (accuracy, model)
-            return
-
-        worst_key = min(self.best_models, key=lambda k: self.best_models[k][0])
-        worst_accuracy = self.best_models[worst_key][0]
-
-        # Replace the worst model if a new one is better
-        if accuracy > worst_accuracy:
-            self.best_models.pop(worst_key)
-            self.best_models[tuple(x)] = (accuracy, model)
+        super().__init__(params, MLPChromosome, DatasetCls)
 
     def get_nn_params(self, ch: MLPChromosome) -> MLPParams:
         activation = ActivationParams(
             activation=ch.activation,
             reste_o=ch.reste_o,
-            binary_qmode=ch.quatization_mode,
+            binary_qmode=ch.activation_binarization_mode,
         )
         layers = self._make_fc_layers(ch)
         fc_params = FCParams(
             layers=layers,
             activation=activation,
-            qmode=ch.quatization_mode,
+            qmode=ch.parameters_quantization_mode,
             dropout_rate=ch.dropout,
         )
         train_params = NNTrainParams(
@@ -133,61 +77,3 @@ class MlpNasProblem(ElementwiseProblem):
         )
 
         return layers
-
-    @lru_cache(maxsize=1)
-    def get_min_complexity(self) -> float:
-        x = MLPChromosome.get_bounds()[0]
-        ch = MLPChromosome.parse(x)
-        params = self.get_nn_params(ch)
-        complexity = params.get_complexity()
-        return complexity
-
-    @lru_cache(maxsize=1)
-    def get_max_complexity(self) -> float:
-        x = MLPChromosome.get_bounds()[1]
-        ch = MLPChromosome.parse(x)
-        params = self.get_nn_params(ch)
-        complexity = params.get_complexity()
-        return complexity
-
-    @staticmethod
-    def normalize(x: float, min: float, max: float) -> float:
-        if x < min:
-            return 0.0
-        elif x > max:
-            return 1.0
-        else:
-            return (x - min) / (max - min)
-
-    @staticmethod
-    def denormalize(x: float, min: float, max: float) -> float:
-        if x < 0.0:
-            return min
-        elif x > 1.0:
-            return max
-        else:
-            return x * (max - min) + min
-
-    def result_as_df(self, res: Result):
-        data = []
-        for i in range(len(res.X)):
-            x = res.X[i]
-            f = res.F[i]
-            accuracy = self.denormalize(-f[0], 0, 100)
-            complexity = self.denormalize(
-                f[1], self.get_min_complexity(), self.get_max_complexity()
-            )
-
-            ch = MLPChromosome.parse(x)
-            params = self.get_nn_params(ch)
-
-            data.append(
-                {
-                    "Accuracy": accuracy,
-                    "Complexity": complexity,
-                    **asdict(params),
-                    "Chromosome": x,
-                }
-            )
-
-        return pd.DataFrame(data)
