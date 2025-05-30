@@ -62,8 +62,12 @@ class NasProblem(ElementwiseProblem):
 
         x_low, x_high = self.chromosome_cfg.get_bounds()
         super().__init__(
-            n_var=self.chromosome_cfg.get_size(), n_obj=2, xl=x_low, xu=x_high + 0.99
-        )  # Part of a workaround to the rounding problem
+            n_var=self.chromosome_cfg.get_size(),
+            n_obj=2,
+            n_ieq_constr=2,
+            xl=x_low,
+            xu=x_high + 0.99,  # Part of a workaround to the rounding problem
+        )
 
     def _evaluate(self, x, out, *args, **kwargs):
         ch = self.chromosome_cfg.decode(x)
@@ -89,14 +93,20 @@ class NasProblem(ElementwiseProblem):
 
         # Maximize accuracy
         f1 = -self.normalize(accuracy, 0, 100)
-
         # Minimize NN complexity
         complexity = params.get_complexity()
         f2 = self.normalize(
             complexity, self.get_min_complexity(), self.get_max_complexity()
         )
-
         out["F"] = [f1, f2]
+
+        # Add constraints. They are optimized to be less than zero
+
+        # Ensure accuracy is above the minimum
+        g1 = self.p.min_accuracy - accuracy
+        # Ensure complexity is below the maximum
+        g2 = complexity - self.p.max_complexity
+        out["G"] = [g1, g2]
 
     def store_model_if_is_is_good(self, x: np.ndarray, accuracy: float, model: MLP):
         if len(self.best_architecture) < self.p.population_size:

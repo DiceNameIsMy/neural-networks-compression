@@ -35,16 +35,22 @@ class FloorRepair(Repair):
 
 @dataclass
 class NasParams:
+    # Architecture evaluation
     batch_size: int | None = None
     epochs: int = EPOCHS
     patience: int = 5
     amount_of_evaluations: int = 1
 
+    # GA params
     population_size: int = 30
     population_offspring_count: int = 10
-
     algorithm_generations: int = 10
 
+    # GA constraints
+    min_accuracy: float = 0.0
+    max_complexity: float = 1.0
+
+    #
     population_store_file: str | None = None
 
     def get_algorithm(self) -> NSGA2:
