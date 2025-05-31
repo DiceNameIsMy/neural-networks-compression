@@ -125,14 +125,6 @@ class CNNParams:
     def get_model(self) -> "CNN":
         return CNN(self)
 
-    def get_complexity(self) -> float:
-        conv_complexity = self.conv.get_conv_complexity()
-        fc_complexity = self.fc.get_complexity()
-
-        complexity = conv_complexity + fc_complexity
-
-        return complexity
-
 
 class CNN(nn.Module):
     p: CNNParams

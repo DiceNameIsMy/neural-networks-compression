@@ -10,7 +10,7 @@ from torch.utils import data
 
 from src.datasets.dataset import CnnDataset, MlpDataset
 from src.models.cnn import CNN, CNNParams
-from src.models.eval import KFoldNNArchitectureEvaluator
+from src.models.eval import NNArchitectureEvaluator
 from src.models.mlp import MLP, MLPParams
 from src.nas.chromosome import Chromosome, ChromosomeConfig
 from src.nas.nas_params import NasParams
@@ -74,9 +74,10 @@ class NasProblem(ElementwiseProblem):
         params = self.get_nn_params(ch)
         logger.debug(f"Evaluating {params}")
 
+        evaluator = NNArchitectureEvaluator(params.train)
         try:
-            stats = KFoldNNArchitectureEvaluator(params).evaluate_accuracy(
-                times=self.p.amount_of_evaluations
+            stats = evaluator.evaluate_accuracy(
+                params, times=self.p.amount_of_evaluations
             )
             self.store_model_if_is_is_good(x, stats["max"], stats["best_model"])
 
@@ -92,20 +93,23 @@ class NasProblem(ElementwiseProblem):
             accuracy = 0.0
 
         # Maximize accuracy
-        f1 = -self.normalize(accuracy, 0, 100)
+        norm_acc = self.normalize(accuracy, 0, 100)
+        f1 = -norm_acc
+
         # Minimize NN complexity
-        complexity = params.get_complexity()
-        f2 = self.normalize(
+        complexity = evaluator.evaluate_complexity(params)
+        norm_complexity = self.normalize(
             complexity, self.get_min_complexity(), self.get_max_complexity()
         )
+        f2 = norm_complexity
         out["F"] = [f1, f2]
 
         # Add constraints. They are optimized to be less than zero
 
         # Ensure accuracy is above the minimum
-        g1 = self.p.min_accuracy - accuracy
+        g1 = self.p.min_accuracy - norm_acc
         # Ensure complexity is below the maximum
-        g2 = complexity - self.p.max_complexity
+        g2 = norm_complexity - self.p.max_complexity
         out["G"] = [g1, g2]
 
     def store_model_if_is_is_good(self, x: np.ndarray, accuracy: float, model: MLP):
@@ -134,7 +138,8 @@ class NasProblem(ElementwiseProblem):
         x = self.chromosome_cfg.get_bounds()[0]
         ch = self.chromosome_cfg.decode(x)
         params = self.get_nn_params(ch)
-        complexity = params.get_complexity()
+        evaluator = NNArchitectureEvaluator(params.train)
+        complexity = evaluator.evaluate_complexity(params)
         return complexity
 
     @lru_cache(maxsize=1)
@@ -142,7 +147,8 @@ class NasProblem(ElementwiseProblem):
         x = self.chromosome_cfg.get_bounds()[1]
         ch = self.chromosome_cfg.decode(x)
         params = self.get_nn_params(ch)
-        complexity = params.get_complexity()
+        evaluator = NNArchitectureEvaluator(params.train)
+        complexity = evaluator.evaluate_complexity(params)
         return complexity
 
     @staticmethod

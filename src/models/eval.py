@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 
 import numpy as np
 import torch
@@ -7,13 +8,41 @@ from torch import nn, optim
 from torch.utils import data
 
 from src.constants import DATALOADERS_NUM_WORKERS, DEVICE, SEED
+from src.datasets.dataset import Dataset
 from src.models.cnn import CNNParams
 from src.models.mlp import MLPParams
+from src.models.nn import NNTrainParams
 
 logger = logging.getLogger(__name__)
 
 
-class NNArchitectureEvaluator:
+class NNArchitectureComplexityEvaluator:
+    p: MLPParams | CNNParams
+
+    def __init__(self, params: MLPParams | CNNParams):
+        self.p = params
+
+    def evaluate_complexity(self):
+        if isinstance(self.p, MLPParams):
+            return self.get_mlp_complexity(self.p)
+        elif isinstance(self.p, CNNParams):
+            return self.get_cnn_complexity(self.p)
+        else:
+            raise ValueError("Unsupported architecture type for complexity evaluation")
+
+    def get_mlp_complexity(self, params: MLPParams) -> float:
+        return params.fc.get_complexity()
+
+    def get_cnn_complexity(self, params: CNNParams) -> float:
+        conv_complexity = params.conv.get_conv_complexity()
+        fc_complexity = params.fc.get_complexity()
+
+        complexity = conv_complexity + fc_complexity
+
+        return complexity
+
+
+class NNArchitectureAccuracyEvaluator:
     p: MLPParams | CNNParams
 
     criterion: nn.CrossEntropyLoss
@@ -153,36 +182,25 @@ class NNArchitectureEvaluator:
         return accuracy
 
 
-class KFoldNNArchitectureEvaluator:
-    p: MLPParams | CNNParams
+class NNArchitectureEvaluator:
+    train: NNTrainParams
+    kfold: StratifiedKFold
 
-    def __init__(self, params: MLPParams | CNNParams):
-        self.p = params
+    def __init__(self, params: NNTrainParams):
+        self.train = params
         self.kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
-    def evaluate_accuracy(self, times=1):
-        X, y = self.p.train.DatasetCls.get_xy()
-
+    def evaluate_accuracy(self, params: MLPParams | CNNParams, times=1):
         best_model = None
         accuracies = []
 
-        for train_indexes, test_indexes in self.kfold.split(X, y):
-            X_train, y_train = X[train_indexes], y[train_indexes]
-            X_test, y_test = X[test_indexes], y[test_indexes]
+        for train_loader, test_loader in self.get_dataloaders(
+            self.kfold, self.train.DatasetCls, self.train.batch_size
+        ):
+            self.train.train_loader = train_loader
+            self.train.test_loader = test_loader
 
-            self.p.train.train_loader = data.DataLoader(
-                self.p.train.DatasetCls(X_train, y_train),
-                batch_size=self.p.train.batch_size,
-                shuffle=True,
-                num_workers=DATALOADERS_NUM_WORKERS,
-            )
-            self.p.train.test_loader = data.DataLoader(
-                self.p.train.DatasetCls(X_test, y_test),
-                batch_size=self.p.train.batch_size,
-                shuffle=False,
-                num_workers=DATALOADERS_NUM_WORKERS,
-            )
-            evaluator = NNArchitectureEvaluator(self.p)
+            evaluator = NNArchitectureAccuracyEvaluator(params)
             stats = evaluator.evaluate_accuracy(times)
 
             if best_model is None or stats["max"] > max(accuracies):
@@ -197,3 +215,36 @@ class KFoldNNArchitectureEvaluator:
             "accuracies": accuracies,
             "best_model": best_model,
         }
+
+    def evaluate_complexity(self, params: MLPParams | CNNParams):
+        evaluator = NNArchitectureComplexityEvaluator(params)
+        complexity = evaluator.evaluate_complexity()
+        return complexity
+
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def get_dataloaders(
+        kfold: StratifiedKFold, DatasetCls: type[Dataset], batch_size: int
+    ) -> list[tuple[data.DataLoader, data.DataLoader]]:
+        X, y = DatasetCls.get_xy()
+
+        dataloaders = []
+        for train_indexes, test_indexes in kfold.split(X, y):
+            X_train, y_train = X[train_indexes], y[train_indexes]
+            X_test, y_test = X[test_indexes], y[test_indexes]
+
+            train_loader = data.DataLoader(
+                DatasetCls(X_train, y_train),
+                batch_size=batch_size,
+                shuffle=True,
+                num_workers=DATALOADERS_NUM_WORKERS,
+            )
+            test_loader = data.DataLoader(
+                DatasetCls(X_test, y_test),
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=DATALOADERS_NUM_WORKERS,
+            )
+            dataloaders.append((train_loader, test_loader))
+
+        return dataloaders

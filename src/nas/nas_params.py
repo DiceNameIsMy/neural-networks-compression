@@ -2,7 +2,9 @@ import logging
 import os
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
+from pandas.errors import EmptyDataError
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.core.repair import Repair
 from pymoo.core.result import Result
@@ -33,6 +35,39 @@ class FloorRepair(Repair):
         return X.astype(int)
 
 
+class MyIntegerRandomSampling(IntegerRandomSampling):
+    """
+    Allows specifying initial population alongside randomly sampled population.
+    """
+
+    extend_by: np.ndarray | None
+
+    def __init__(self, extend_by: np.ndarray | None = None):
+        self.extend_by = extend_by
+        super().__init__()
+
+    def _do(self, problem, n_samples, **kwargs):
+        n_preexisting = len(self.extend_by) if self.extend_by is not None else 0
+        sampled = self._do_sampling(problem, n_samples, problem.n_var - n_preexisting)
+
+        if self.extend_by is None:
+            return sampled
+
+        if len(self.extend_by) == 0:
+            self.extend_by = None
+            return sampled
+
+        result = np.concatenate((sampled, self.extend_by))
+        self.extend_by = None
+        return result
+
+    def _do_sampling(self, problem, n_samples, n_var: int):
+        n, (xl, xu) = n_var, problem.bounds()
+        return np.column_stack(
+            [np.random.randint(xl[k], xu[k] + 1, size=n_samples) for k in range(n)]
+        )
+
+
 @dataclass
 class NasParams:
     # Architecture evaluation
@@ -54,21 +89,19 @@ class NasParams:
     population_store_file: str | None = None
 
     def get_algorithm(self) -> NSGA2:
-        sampling = IntegerRandomSampling()
+        population = None
 
         if self.population_store_file is not None:
             population = self.load_population(self.population_store_file)
-            if population is None:
-                logger.info(
-                    f"Population file `{self.population_store_file}` is empty. Using random sampling"
-                )
-            else:
-                logger.info(
-                    f"Population file loaded from `{self.population_store_file}` successfully"
-                )
-                sampling = population
+
+        if population is None or len(population) == 0:
+            logger.info("Using random initial population")
         else:
-            logger.info("No population file provided. Using random sampling")
+            logger.info(
+                f"Initial population loaded from `{self.population_store_file}` successfully"
+            )
+
+        sampling = MyIntegerRandomSampling(population)
 
         return NSGA2(
             pop_size=self.population_size,
@@ -91,7 +124,12 @@ class NasParams:
         if not os.path.exists(path):
             return None
 
-        return pd.read_csv(path).values
+        try:
+            df = pd.read_csv(path)
+            return df.values
+        except EmptyDataError as e:
+            logger.error(f"Failed to load population from {path}: {e}")
+            return np.array([])
 
     @staticmethod
     def store_population(res: Result, filename: str):
