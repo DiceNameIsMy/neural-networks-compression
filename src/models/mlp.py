@@ -1,5 +1,4 @@
 import logging
-import math
 from dataclasses import dataclass
 
 from torch import nn
@@ -21,21 +20,36 @@ class FCLayerParams:
     def get_fc_layer(self, in_height: int) -> nn.Linear:
         match self.compression:
             case NNParamsCompMode.NONE:
-                return nn.Linear(in_height, self.height)
+                return nn.Linear(in_height, self.height, bias=False)
             case NNParamsCompMode.NBITS:
                 assert self.bitwidth > 0, "Bitwidth must be greater than 0"
                 assert self.bitwidth < 32, "Bitwidth must be less than 32"
                 return weight_quant.LinearQunatized(
-                    self.bitwidth, in_height, self.height
+                    self.bitwidth, in_height, self.height, bias=False
                 )
             case NNParamsCompMode.BINARY:
-                return binary.LinearBinary(in_height, self.height)
+                return binary.LinearBinary(in_height, self.height, bias=False)
             case NNParamsCompMode.TERNARY:
-                return ternarize.LinearTernary(in_height, self.height)
+                return ternarize.LinearTernary(in_height, self.height, bias=False)
             case _:
                 raise Exception(
                     "Unknown weight quantization mode: "
                     + f"{self.compression} of type {type(self.compression)}"
+                )
+
+    def get_complexity_coefficient(self) -> float:
+        match self.compression:
+            case NNParamsCompMode.NONE:
+                return 32.0
+            case NNParamsCompMode.NBITS:
+                return self.bitwidth
+            case NNParamsCompMode.BINARY:
+                return 1.0
+            case NNParamsCompMode.TERNARY:
+                return 2.0
+            case _:
+                raise Exception(
+                    f"Unknown compression value `{self.compression}` of type `{type(self.compression)}`"
                 )
 
 
@@ -53,9 +67,9 @@ class FCParams:
 
         prev_layer = self.layers[0]
         for layer in self.layers[1:]:
-            mults = prev_layer.height * layer.height
-            bitwidth = prev_layer.bitwidth
-            complexity += mults * (math.log2(max(2, bitwidth)) * 3)
+            # TODO: consider bias
+            mac_ops = prev_layer.height * layer.height
+            complexity += mac_ops * layer.get_complexity_coefficient()
 
             prev_layer = layer
 
