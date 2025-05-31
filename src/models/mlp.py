@@ -48,6 +48,22 @@ class FCParams:
     # Other
     dropout_rate: float = 0.0
 
+    def get_complexity(self) -> float:
+        complexity = 0
+
+        prev_layer = self.layers[0]
+        for layer in self.layers[1:]:
+            mults = prev_layer.height * layer.height
+            bitwidth = prev_layer.bitwidth
+            complexity += mults * (math.log2(max(2, bitwidth)) * 3)
+
+            prev_layer = layer
+
+        activation_coef = 3 if self.activation.activation == Activation.RELU else 1.2
+        complexity *= activation_coef
+
+        return complexity
+
 
 @dataclass
 class MLPParams:

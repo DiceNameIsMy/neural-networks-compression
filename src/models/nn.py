@@ -41,6 +41,24 @@ class ActivationParams:
                     + f"{self.activation} of type {type(self.activation)}"
                 )
 
+    def get_activation_complexity_coefficient(self) -> float:
+        match self.activation:
+            case Activation.NONE:
+                return 0.0
+            case Activation.RELU:
+                return 10.0
+            case Activation.BINARIZE:
+                return 1.0
+            case Activation.BINARIZE_RESTE:
+                return 1.0
+            case Activation.TERNARIZE:
+                return 2.0
+            case _:
+                raise Exception(
+                    "Unknown activation function: "
+                    + f"{self.activation} of type {type(self.activation)}"
+                )
+
 
 @dataclass
 class NNTrainParams:

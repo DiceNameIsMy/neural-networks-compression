@@ -11,15 +11,15 @@ class NNParamsCompMode(enum.Enum):
     Neural network parameters compression modes
     """
 
-    NONE = "none"
-    NBITS = "nbits"
     BINARY = "binary"
     TERNARY = "ternary"
+    NBITS = "nbits"
+    NONE = "none"
 
 
 class Activation(enum.Enum):
     NONE = "none"
-    RELU = "relu"
     BINARIZE = "binary"
     BINARIZE_RESTE = "binary_ReSTE"
     TERNARIZE = "ternary"
+    RELU = "relu"

@@ -1,5 +1,4 @@
 import logging
-import math
 from dataclasses import dataclass
 
 import torch
@@ -7,7 +6,7 @@ from torch import nn
 
 from src.models.compression import ternarize
 from src.models.compression.conv import Conv2dWrapper
-from src.models.compression.enums import Activation, NNParamsCompMode, QMode
+from src.models.compression.enums import NNParamsCompMode, QMode
 from src.models.compression.weight_quant import Quantize
 from src.models.mlp import FCParams
 from src.models.nn import ActivationParams, NNTrainParams
@@ -28,7 +27,7 @@ class ConvLayerParams:
 
     pooling_kernel_size: int = 1
 
-    def add_pooling(self):
+    def add_max_pooling(self):
         return self.pooling_kernel_size > 1
 
 
@@ -68,6 +67,53 @@ class ConvParams:
                     f"Unknown compression value `{self.compression}` of type `{type(self.compression)}`"
                 )
 
+    def get_conv_complexity(self) -> float:
+        complexity = 0
+
+        in_dimensions = self.in_dimensions
+        in_channels = self.in_channels
+        for layer in self.layers:
+            reduce_image_by = layer.kernel_size // 2 + layer.padding
+            out_dimensions = (in_dimensions - reduce_image_by) // layer.stride
+
+            # Multiple Accumulate (MAC)
+            mac_ops_per_out_channel = in_channels * out_dimensions**2
+            mac_ops = mac_ops_per_out_channel * layer.channels
+
+            # Convolution complexity
+            complexity += mac_ops * self.get_conv_complexity_coefficient()
+
+            # Activation complexity
+            out_size = out_dimensions**2 * layer.channels
+            complexity += (
+                out_size * self.activation.get_activation_complexity_coefficient()
+            )
+
+            # Pooling compexity
+            if layer.add_max_pooling():
+                # Accumulate
+                acc_ops = (out_dimensions // 2) ** 2
+                complexity += acc_ops
+
+        return complexity
+
+    def get_conv_complexity_coefficient(self) -> float:
+        match self.compression:
+            case NNParamsCompMode.NONE:
+                return 32.0
+            case NNParamsCompMode.NBITS:
+                raise NotImplementedError(
+                    "NBITS compression mode is not implemented for convolutional layers"
+                )
+            case NNParamsCompMode.BINARY:
+                return 1.0
+            case NNParamsCompMode.TERNARY:
+                return 2.0
+            case _:
+                raise Exception(
+                    f"Unknown compression value `{self.compression}` of type `{type(self.compression)}`"
+                )
+
 
 @dataclass
 class CNNParams:
@@ -80,23 +126,11 @@ class CNNParams:
         return CNN(self)
 
     def get_complexity(self) -> float:
-        conv_complexity = 1000 * len(self.conv.layers)  # TODO: Make it more precise
+        conv_complexity = self.conv.get_conv_complexity()
+        fc_complexity = self.fc.get_complexity()
 
-        fc_complexity = 0
-        prev_layer = self.fc.layers[0]
-        for layer in self.fc.layers[1:]:
-            mults = prev_layer.height * layer.height
-            bitwidth = prev_layer.bitwidth
-            fc_complexity += mults * (math.log2(max(2, bitwidth)) * 3)
+        complexity = conv_complexity + fc_complexity
 
-            prev_layer = layer
-
-        activation_coef = 3 if self.fc.activation.activation == Activation.RELU else 1.2
-        fc_complexity *= activation_coef
-
-        complexity = 0
-        complexity += conv_complexity
-        complexity += fc_complexity
         return complexity
 
 
@@ -148,6 +182,9 @@ class CNN(nn.Module):
             self.p.conv.in_dimensions,
         )
         x = dummy_input
+        flattened_size = x.reshape(x.shape[0], -1).size(1)
+        logger.info(f"Input shape: {x.shape}, equating to {flattened_size} inputs")
+
         for layer in self.conv_layers:
             x = layer(x)
             flattened_size = x.reshape(x.shape[0], -1).size(1)
@@ -159,6 +196,26 @@ class CNN(nn.Module):
         flattened = x.reshape(x.shape[0], -1)
         logger.info(f"FC input size is {flattened.size(1)}")
 
+    @torch.no_grad()
+    def get_conv_layers_sizes(self) -> list[int]:
+        # Forward pass dummy input through convolutional layers
+        dummy_input = torch.zeros(
+            1,
+            self.p.conv.in_channels,
+            self.p.conv.in_dimensions,
+            self.p.conv.in_dimensions,
+        )
+
+        # TODO: Remove influence of channels on these amounts. I only need the channel sizes
+        x = dummy_input
+        sizes = []
+        for layer in self.conv_layers:
+            x: torch.Tensor = layer(x)
+            x_size = x.reshape(x.shape[0], -1).size(1)
+            sizes.append(x_size)
+
+        return sizes
+
     @classmethod
     def build_conv_layers(cls, p: CNNParams) -> nn.ModuleList:
         ConvModule = p.conv.get_conv_module_cls()
@@ -166,8 +223,8 @@ class CNN(nn.Module):
 
         in_channels = p.conv.in_channels
         for layer_params in p.conv.layers:
-            layers = []
-            layers.append(
+            layer = []
+            layer.append(
                 ConvModule(
                     in_channels=in_channels,
                     out_channels=layer_params.channels,
@@ -179,18 +236,18 @@ class CNN(nn.Module):
                     bias=layer_params.bias,
                 )
             )
-            layers.append(nn.BatchNorm2d(layer_params.channels))
-            layers.append(p.conv.activation.get_activation_module())
+            layer.append(nn.BatchNorm2d(layer_params.channels))
+            layer.append(p.conv.activation.get_activation_module())
 
-            if layer_params.add_pooling():
-                layers.append(
+            if layer_params.add_max_pooling():
+                layer.append(
                     nn.MaxPool2d(
                         kernel_size=layer_params.pooling_kernel_size,
                         stride=layer_params.pooling_kernel_size,
                     )
                 )
 
-            conv_layers.append(nn.Sequential(*layers))
+            conv_layers.append(nn.Sequential(*layer))
 
             in_channels = layer_params.channels
 
