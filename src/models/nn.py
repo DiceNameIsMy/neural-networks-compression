@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from src.constants import EPOCHS, LEARNING_RATE, MODELS_FOLDER
 from src.datasets.dataset import Dataset
-from src.models.compression import binary, binary_ReSTE, ternarize
+from src.models.compression import binary, binary_ReSTE
 from src.models.compression.enums import Activation, QMode
 
 logger = logging.getLogger(__name__)
@@ -33,8 +33,6 @@ class ActivationParams:
                 return binary_ReSTE.BinarizeWithReSTE(
                     self.reste_threshold, self.reste_o
                 )
-            case Activation.TERNARIZE:
-                return ternarize.Ternarize()
             case _:
                 raise Exception(
                     "Unknown activation function: "
@@ -51,8 +49,6 @@ class ActivationParams:
                 return 1.0
             case Activation.BINARIZE_RESTE:
                 return 1.0
-            case Activation.TERNARIZE:
-                return 2.0
             case _:
                 raise Exception(
                     "Unknown activation function: "

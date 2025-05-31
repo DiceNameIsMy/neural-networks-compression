@@ -21,5 +21,4 @@ class Activation(enum.Enum):
     NONE = "none"
     BINARIZE = "binary"
     BINARIZE_RESTE = "binary_ReSTE"
-    TERNARIZE = "ternary"
     RELU = "relu"
