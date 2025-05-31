@@ -1,10 +1,11 @@
 import logging
 from dataclasses import dataclass
+from functools import partial
 
 import torch
 from torch import nn
 
-from src.models.compression import ternarize
+from src.models.compression import ternarize, weight_quant
 from src.models.compression.conv import Conv2dWrapper
 from src.models.compression.enums import NNParamsCompMode, QMode
 from src.models.compression.weight_quant import Quantize
@@ -25,10 +26,43 @@ class ConvLayerParams:
     groups: int = 1
     bias: bool = True
 
+    compression: NNParamsCompMode = NNParamsCompMode.NONE
+    bitwidth: int = 32
+
     pooling_kernel_size: int = 1
 
     def add_max_pooling(self):
         return self.pooling_kernel_size > 1
+
+    def get_conv_module_cls(self) -> type[Conv2dWrapper]:
+        match self.compression:
+            case NNParamsCompMode.NONE:
+                return Conv2dWrapper
+            case NNParamsCompMode.NBITS:
+                return partial(weight_quant.Conv2DQuantized, nbits=self.bitwidth)  # type: ignore
+            case NNParamsCompMode.BINARY:
+                return ternarize.Conv2dBinary
+            case NNParamsCompMode.TERNARY:
+                return ternarize.Conv2dTernary
+            case _:
+                raise Exception(
+                    f"Unknown compression value `{self.compression}` of type `{type(self.compression)}`"
+                )
+
+    def get_conv_complexity_coefficient(self) -> float:
+        match self.compression:
+            case NNParamsCompMode.NONE:
+                return 32.0
+            case NNParamsCompMode.NBITS:
+                return self.bitwidth
+            case NNParamsCompMode.BINARY:
+                return 1.0
+            case NNParamsCompMode.TERNARY:
+                return 2.0
+            case _:
+                raise Exception(
+                    f"Unknown compression value `{self.compression}` of type `{type(self.compression)}`"
+                )
 
 
 @dataclass
@@ -41,7 +75,6 @@ class ConvParams:
 
     layers: list[ConvLayerParams]
 
-    compression: NNParamsCompMode
     reste_threshold: float
     reste_o: float
 
@@ -49,23 +82,6 @@ class ConvParams:
 
     # Other
     dropout_rate: float = 0.0
-
-    def get_conv_module_cls(self) -> type[Conv2dWrapper]:
-        match self.compression:
-            case NNParamsCompMode.NONE:
-                return Conv2dWrapper
-            case NNParamsCompMode.NBITS:
-                raise NotImplementedError(
-                    "NBITS compression mode is not implemented for convolutional layers"
-                )
-            case NNParamsCompMode.BINARY:
-                return ternarize.Conv2dBinary
-            case NNParamsCompMode.TERNARY:
-                return ternarize.Conv2dTernary
-            case _:
-                raise Exception(
-                    f"Unknown compression value `{self.compression}` of type `{type(self.compression)}`"
-                )
 
     def get_conv_complexity(self) -> float:
         complexity = 0
@@ -81,7 +97,7 @@ class ConvParams:
             mac_ops = mac_ops_per_out_channel * layer.channels
 
             # Convolution complexity
-            complexity += mac_ops * self.get_conv_complexity_coefficient()
+            complexity += mac_ops * layer.get_conv_complexity_coefficient()
 
             # Activation complexity
             out_size = out_dimensions**2 * layer.channels
@@ -96,23 +112,6 @@ class ConvParams:
                 complexity += acc_ops
 
         return complexity
-
-    def get_conv_complexity_coefficient(self) -> float:
-        match self.compression:
-            case NNParamsCompMode.NONE:
-                return 32.0
-            case NNParamsCompMode.NBITS:
-                raise NotImplementedError(
-                    "NBITS compression mode is not implemented for convolutional layers"
-                )
-            case NNParamsCompMode.BINARY:
-                return 1.0
-            case NNParamsCompMode.TERNARY:
-                return 2.0
-            case _:
-                raise Exception(
-                    f"Unknown compression value `{self.compression}` of type `{type(self.compression)}`"
-                )
 
 
 @dataclass
@@ -210,12 +209,13 @@ class CNN(nn.Module):
 
     @classmethod
     def build_conv_layers(cls, p: CNNParams) -> nn.ModuleList:
-        ConvModule = p.conv.get_conv_module_cls()
         conv_layers = nn.ModuleList()
 
         in_channels = p.conv.in_channels
         for layer_params in p.conv.layers:
             layer = []
+
+            ConvModule = layer_params.get_conv_module_cls()
             layer.append(
                 ConvModule(
                     in_channels=in_channels,

@@ -28,15 +28,21 @@ class CNNChromosome(Chromosome):
     in_bitwidth: int = with_options(BITWIDTHS_MAPPING)
 
     conv_layers: int = with_options(CONV_LAYERS_MAPPING)
+
     conv_channels1: int = with_options(CONV_CHANNELS_MAPPING)
     conv_stride1: int = with_options(CONV_STRIDES_MAPPING)
     conv_pooling_size1: int = with_options(CONV_POOLING_SIZES_MAPPING)
+    conv_compression_bitwidth1: int = with_options(BITWIDTHS_MAPPING)
+
     conv_channels2: int = with_options(CONV_CHANNELS_MAPPING)
     conv_stride2: int = with_options(CONV_STRIDES_MAPPING)
     conv_pooling_size2: int = with_options(CONV_POOLING_SIZES_MAPPING)
+    conv_compression_bitwidth2: int = with_options(BITWIDTHS_MAPPING)
+
     conv_channels3: int = with_options(CONV_CHANNELS_MAPPING)
     conv_stride3: int = with_options(CONV_STRIDES_MAPPING)
     conv_pooling_size3: int = with_options(CONV_POOLING_SIZES_MAPPING)
+    conv_compression_bitwidth3: int = with_options(BITWIDTHS_MAPPING)
 
     fc_layers: int = with_options(FC_LAYERS_MAPPING)
     fc_height1: int = with_options(FC_HEIGHTS_MAPPING)
@@ -46,9 +52,10 @@ class CNNChromosome(Chromosome):
     fc_height3: int = with_options(FC_HEIGHTS_MAPPING)
     fc_bitwidth3: int = with_options(BITWIDTHS_MAPPING)
 
-    dropout: float = with_options(DROPOUT_MAPPING)
+    conv_compression: NNParamsCompMode = with_options(NN_PARAMS_COMP_MODE_MAPPING)
+    fc_compression: NNParamsCompMode = with_options(NN_PARAMS_COMP_MODE_MAPPING)
 
-    compression: NNParamsCompMode = with_options(NN_PARAMS_COMP_MODE_MAPPING)
+    dropout: float = with_options(DROPOUT_MAPPING)
 
     activation: Activation = with_options(ACTIVATION_MAPPING)
     activation_qmode: QMode = with_options(QMODE_MAPPING)

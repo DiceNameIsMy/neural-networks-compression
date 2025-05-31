@@ -34,7 +34,6 @@ class CnnNasProblem(NasProblem):
             in_bitwidth=ch.in_bitwidth,
             out_height=self.DatasetCls.output_size,
             layers=conv_layers,
-            compression=ch.compression,
             reste_threshold=ch.activation_reste_threshold,
             reste_o=ch.activation_reste_o,
             activation=activation,
@@ -68,15 +67,15 @@ class CnnNasProblem(NasProblem):
         layers = []
         if ch.fc_layers >= 1:
             layers.append(
-                FCLayerParams(ch.fc_height1, NNParamsCompMode.NBITS, ch.fc_bitwidth1)
+                FCLayerParams(ch.fc_height1, ch.fc_compression, ch.fc_bitwidth1)
             )
         if ch.fc_layers >= 2:
             layers.append(
-                FCLayerParams(ch.fc_height2, NNParamsCompMode.NBITS, ch.fc_bitwidth2)
+                FCLayerParams(ch.fc_height2, ch.fc_compression, ch.fc_bitwidth2)
             )
         if ch.fc_layers >= 3:
             layers.append(
-                FCLayerParams(ch.fc_height3, NNParamsCompMode.NBITS, ch.fc_bitwidth3)
+                FCLayerParams(ch.fc_height3, ch.fc_compression, ch.fc_bitwidth3)
             )
         layers.append(
             FCLayerParams(self.DatasetCls.output_size, NNParamsCompMode.NONE, 32)
@@ -93,6 +92,8 @@ class CnnNasProblem(NasProblem):
                     kernel_size=3,
                     pooling_kernel_size=ch.conv_pooling_size1,
                     stride=ch.conv_stride1,
+                    compression=ch.conv_compression,
+                    bitwidth=ch.conv_compression_bitwidth1,
                 )
             )
         if ch.conv_layers >= 2:
@@ -102,6 +103,8 @@ class CnnNasProblem(NasProblem):
                     kernel_size=3,
                     pooling_kernel_size=ch.conv_pooling_size2,
                     stride=ch.conv_stride2,
+                    compression=ch.conv_compression,
+                    bitwidth=ch.conv_compression_bitwidth2,
                 )
             )
         if ch.conv_layers >= 3:
@@ -111,6 +114,8 @@ class CnnNasProblem(NasProblem):
                     kernel_size=3,
                     pooling_kernel_size=ch.conv_pooling_size3,
                     stride=ch.conv_stride3,
+                    compression=ch.conv_compression,
+                    bitwidth=ch.conv_compression_bitwidth3,
                 )
             )
         return layers
