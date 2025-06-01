@@ -10,9 +10,6 @@ class VGGNetBuilder(ArchitectureBuilder):
         return "LeNet5"
 
     def get_params(self) -> CNNParams:
-        train_loader, test_loader = self.p.DatasetCls.get_dataloaders(self.p.batch_size)
-
-        # TODO: LeNet5 uses avg pool, but we use max pool here.
         conv_layers = [
             ConvLayerParams(
                 channels=128,
@@ -22,6 +19,7 @@ class VGGNetBuilder(ArchitectureBuilder):
                 pooling_kernel_size=1,
                 compression=self.p.conv_compression,
                 bitwidth=self.p.conv_bitwidth,
+                bias=False,
             ),
             ConvLayerParams(
                 channels=128,
@@ -31,6 +29,7 @@ class VGGNetBuilder(ArchitectureBuilder):
                 pooling_kernel_size=2,
                 compression=self.p.conv_compression,
                 bitwidth=self.p.conv_bitwidth,
+                bias=False,
             ),
             ConvLayerParams(
                 channels=256,
@@ -40,6 +39,7 @@ class VGGNetBuilder(ArchitectureBuilder):
                 pooling_kernel_size=1,
                 compression=self.p.conv_compression,
                 bitwidth=self.p.conv_bitwidth,
+                bias=False,
             ),
             ConvLayerParams(
                 channels=256,
@@ -49,6 +49,7 @@ class VGGNetBuilder(ArchitectureBuilder):
                 pooling_kernel_size=2,
                 compression=self.p.conv_compression,
                 bitwidth=self.p.conv_bitwidth,
+                bias=False,
             ),
             ConvLayerParams(
                 channels=512,
@@ -58,6 +59,7 @@ class VGGNetBuilder(ArchitectureBuilder):
                 pooling_kernel_size=1,
                 compression=self.p.conv_compression,
                 bitwidth=self.p.conv_bitwidth,
+                bias=False,
             ),
             ConvLayerParams(
                 channels=512,
@@ -67,6 +69,7 @@ class VGGNetBuilder(ArchitectureBuilder):
                 pooling_kernel_size=2,
                 compression=self.p.conv_compression,
                 bitwidth=self.p.conv_bitwidth,
+                bias=False,
             ),
         ]
         fc_layers = [

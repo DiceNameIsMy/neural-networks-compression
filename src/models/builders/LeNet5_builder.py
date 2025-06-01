@@ -10,8 +10,6 @@ class LeNet5Builder(ArchitectureBuilder):
         return "LeNet5"
 
     def get_params(self) -> CNNParams:
-
-        # TODO: LeNet5 uses avg pool, but we use max pool here.
         conv_layers = [
             ConvLayerParams(
                 channels=6,
