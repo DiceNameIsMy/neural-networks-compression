@@ -204,8 +204,6 @@ def run_on_dataset(
     for architecture_builder in [LeNet5Builder(epochs, epochs, DatasetCls.batch_size)]:
         for activation in Activation:
             for conv_compression in NNParamsCompMode:
-                if conv_compression == NNParamsCompMode.TERNARY:
-                    continue
 
                 full = evaluate_compression(
                     architecture_builder,
