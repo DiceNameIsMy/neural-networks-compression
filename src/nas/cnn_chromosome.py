@@ -56,6 +56,7 @@ class CNNChromosome(Chromosome):
     fc_bitwidth2: int = with_options(BITWIDTHS_MAPPING)
     fc_height3: int = with_options(FC_HEIGHTS_MAPPING)
     fc_bitwidth3: int = with_options(BITWIDTHS_MAPPING)
+    fc_output_bitwidth: int = with_options(BITWIDTHS_MAPPING)
 
     conv_compression: NNParamsCompMode = with_options(NN_PARAMS_COMP_MODE_MAPPING)
     fc_compression: NNParamsCompMode = with_options(NN_PARAMS_COMP_MODE_MAPPING)

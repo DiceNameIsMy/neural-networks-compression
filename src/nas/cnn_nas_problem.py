@@ -2,7 +2,7 @@ import logging
 
 from src.datasets.dataset import CnnDataset
 from src.models.cnn import CNNParams, ConvLayerParams, ConvParams
-from src.models.compression.enums import NNParamsCompMode, QMode
+from src.models.compression.enums import QMode
 from src.models.mlp import FCLayerParams, FCParams
 from src.models.nn import ActivationParams, NNTrainParams
 from src.nas.cnn_chromosome import CNNChromosome
@@ -74,10 +74,13 @@ class CnnNasProblem(NasProblem):
             )
         if ch.fc_layers >= 3:
             layers.append(
-                FCLayerParams(ch.fc_height3, ch.fc_compression, ch.fc_bitwidth3)
+                FCLayerParams(ch.fc_height3, ch.fc_compression, ch.fc_output_bitwidth)
             )
+
         layers.append(
-            FCLayerParams(self.DatasetCls.output_size, NNParamsCompMode.NONE, 32)
+            FCLayerParams(
+                self.DatasetCls.output_size, ch.fc_compression, ch.fc_output_bitwidth
+            )
         )
 
         return layers
