@@ -55,6 +55,17 @@ class MNISTDataset(CnnDataset):
         return cls.get_dataloaders_from_xy(X, y, batch_size)
 
 
+class MNIST32x32Dataset(MNISTDataset):
+    input_dimensions: int = 32
+    input_size: int = 32 * 32
+
+    @classmethod
+    def get_xy(cls) -> tuple[torch.Tensor, torch.Tensor]:
+        X, y = super().get_xy()
+        X = transforms.Resize((32, 32))(X)
+        return X, y
+
+
 class MiniMNISTDataset(MNISTDataset):
 
     @classmethod
@@ -62,4 +73,15 @@ class MiniMNISTDataset(MNISTDataset):
         X, y = super().get_xy()
         X = X[:4000]
         y = y[:4000]
+        return X, y
+
+
+class MiniMNIST32x32Dataset(MiniMNISTDataset):
+    input_dimensions: int = 32
+    input_size: int = 32 * 32
+
+    @classmethod
+    def get_xy(cls) -> tuple[torch.Tensor, torch.Tensor]:
+        X, y = super().get_xy()
+        X = transforms.Resize((32, 32))(X)
         return X, y
