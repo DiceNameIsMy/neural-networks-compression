@@ -134,7 +134,7 @@ class NasParams:
     @staticmethod
     def store_population(res: Result, file: str | None):
         if file is None:
-            file = POPULATION_FOLDER + "/population.csv"
+            file = os.path.join(POPULATION_FOLDER, "population.csv")
 
         # Create cache directory if it does not exist
         if not os.path.exists(file):

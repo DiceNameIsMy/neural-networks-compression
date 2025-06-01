@@ -36,7 +36,7 @@ def run_nas_pipeline(
 ):
     # TODO: Parametrize other parameters too
     prefix = get_prefix(output_folder)
-    population_output = prefix + "/population.csv"
+    population_output = os.path.join(prefix, "population.csv")
 
     CnnDatasetClass = try_get_cnn_dataset(dataset)
     MlpDatasetClass = try_get_mlp_dataset(dataset)
@@ -77,7 +77,7 @@ def run_nas_pipeline(
     logger.info("NAS has finished")
 
     if store_models:
-        models_folder = prefix + "/models"
+        models_folder = os.path.join(prefix, "models")
         os.makedirs(models_folder, exist_ok=True)
 
         for chromosome, (accuracy, model) in problem.best_architecture.items():
@@ -92,11 +92,11 @@ def run_nas_pipeline(
 
     if histogram:
         hist_fig = hist_accuracies(df["Accuracy"])
-        hist_fig.savefig(prefix + "/histogram.png")
+        hist_fig.savefig(os.path.join(prefix, "histogram.png"))
 
     if pareto:
         pareto_fig = plot_pareto_front(df["Accuracy"], df["Complexity"])
-        pareto_fig.savefig(prefix + "/pareto.png")
+        pareto_fig.savefig(os.path.join(prefix, "pareto.png"))
 
     print(df.to_string(index=False, columns=["Accuracy", "Complexity", "Chromosome"]))
 

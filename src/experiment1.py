@@ -1,4 +1,5 @@
 import logging
+import os
 
 import pandas as pd
 import plotly.express as px
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_prefix(path: str | None = None) -> str:
-    return get_reporting_folder(path) + "/experiment1_"
+    return os.path.join(get_reporting_folder(path), "experiment1_")
 
 
 full_dataset_architecture_pairs: list[
