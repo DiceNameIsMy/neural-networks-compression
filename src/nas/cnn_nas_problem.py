@@ -84,37 +84,17 @@ class CnnNasProblem(NasProblem):
 
     def _get_conv_layers(self, ch: CNNChromosome) -> list[ConvLayerParams]:
         layers = []
-        if ch.conv_layers >= 1:
+        for i in range(ch.conv_layers):
             layers.append(
                 ConvLayerParams(
-                    channels=ch.conv_channels1,
+                    channels=getattr(ch, f"conv_channels{i}"),
                     kernel_size=3,
-                    pooling_kernel_size=ch.conv_pooling_size1,
-                    stride=ch.conv_stride1,
+                    pooling_kernel_size=getattr(ch, f"conv_pooling_size{i}"),
+                    stride=getattr(ch, f"conv_stride{i}"),
                     compression=ch.conv_compression,
-                    bitwidth=ch.conv_compression_bitwidth1,
+                    bitwidth=getattr(ch, f"conv_compression_bitwidth{i}"),
+                    bias=False,
                 )
             )
-        if ch.conv_layers >= 2:
-            layers.append(
-                ConvLayerParams(
-                    channels=ch.conv_channels2,
-                    kernel_size=3,
-                    pooling_kernel_size=ch.conv_pooling_size2,
-                    stride=ch.conv_stride2,
-                    compression=ch.conv_compression,
-                    bitwidth=ch.conv_compression_bitwidth2,
-                )
-            )
-        if ch.conv_layers >= 3:
-            layers.append(
-                ConvLayerParams(
-                    channels=ch.conv_channels3,
-                    kernel_size=3,
-                    pooling_kernel_size=ch.conv_pooling_size3,
-                    stride=ch.conv_stride3,
-                    compression=ch.conv_compression,
-                    bitwidth=ch.conv_compression_bitwidth3,
-                )
-            )
+
         return layers

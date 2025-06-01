@@ -15,12 +15,12 @@ from src.nas.chromosome import (
     with_options,
 )
 
-CONV_LAYERS_MAPPING = (1, 2, 3)
-CONV_CHANNELS_MAPPING = (16, 24, 32)
+CONV_LAYERS_MAPPING = (1, 2, 3, 4)
+CONV_CHANNELS_MAPPING = (16, 24, 32, 64, 128)
 CONV_STRIDES_MAPPING = (1, 2)
 CONV_POOLING_SIZES_MAPPING = (1, 2)
 FC_LAYERS_MAPPING = (1, 2, 3)
-FC_HEIGHTS_MAPPING = (16, 32, 64, 128)
+FC_HEIGHTS_MAPPING = (8, 16, 32, 64, 128)
 
 
 @dataclass
@@ -43,6 +43,11 @@ class CNNChromosome(Chromosome):
     conv_stride3: int = with_options(CONV_STRIDES_MAPPING)
     conv_pooling_size3: int = with_options(CONV_POOLING_SIZES_MAPPING)
     conv_compression_bitwidth3: int = with_options(BITWIDTHS_MAPPING)
+
+    conv_channels4: int = with_options(CONV_CHANNELS_MAPPING)
+    conv_stride4: int = with_options(CONV_STRIDES_MAPPING)
+    conv_pooling_size4: int = with_options(CONV_POOLING_SIZES_MAPPING)
+    conv_compression_bitwidth4: int = with_options(BITWIDTHS_MAPPING)
 
     fc_layers: int = with_options(FC_LAYERS_MAPPING)
     fc_height1: int = with_options(FC_HEIGHTS_MAPPING)

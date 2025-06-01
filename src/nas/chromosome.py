@@ -13,22 +13,13 @@ RESTE_THRESHOLD_MAPPING = (3.0,)
 QMODE_MAPPING = (QMode.DET,)
 NN_PARAMS_COMP_MODE_MAPPING = tuple(q for q in NNParamsCompMode)
 
-LEARNING_RATES_MAPPING = (
-    0.0001,
-    0.0002,
-    0.0005,
-    0.001,
-    0.002,
-    0.005,
-    0.01,
+LEARNING_RATES_MAPPING = (0.001,)
+WEIGHT_DECAY_MAPPING = (0.00001,)
+DROPOUT_MAPPING = (
+    0.0,
+    0.1,
+    0.2,
 )
-WEIGHT_DECAY_MAPPING = (
-    0.01,
-    0.005,
-    0.002,
-    0.001,
-)
-DROPOUT_MAPPING = (0.0, 0.1, 0.2)
 
 
 def with_options(options: tuple):
