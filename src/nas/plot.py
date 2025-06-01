@@ -39,12 +39,12 @@ def plot_pareto_front(accuracy: pd.Series, cost: pd.Series):
 
     # Beautify the plot
     max_cost = max(cost)
-    ax.set_ylim(max_cost * 1.1, -(max_cost * 0.1))
+    ax.set_ylim(-(max_cost * 0.1), max_cost * 1.1)
     ax.ticklabel_format(style="plain", axis="y")
 
     accuracy_range = max(accuracy) - min(accuracy)
     ax.set_xlim(
-        min(accuracy) - (accuracy_range * 0.1), max(accuracy) + (accuracy_range * 0.1)
+        max(accuracy) + (accuracy_range * 0.1), min(accuracy) - (accuracy_range * 0.1)
     )
 
     ax.set_title("Pareto Front")
