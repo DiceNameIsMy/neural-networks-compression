@@ -31,7 +31,6 @@ class CnnNasProblem(NasProblem):
         conv_params = ConvParams(
             in_channels=self.DatasetCls.input_channels,
             in_dimensions=self.DatasetCls.input_dimensions,
-            in_bitwidth=ch.in_bitwidth,
             out_height=self.DatasetCls.output_size,
             layers=conv_layers,
             reste_threshold=ch.activation_reste_threshold,

@@ -70,7 +70,6 @@ class ConvParams:
     # Dataset specific params
     in_channels: int
     in_dimensions: int
-    in_bitwidth: int
     out_height: int
 
     layers: list[ConvLayerParams]
@@ -276,7 +275,7 @@ class CNN(nn.Module):
     def _get_fc_in_height(p: CNNParams, conv_layers: nn.ModuleList) -> int:
         # Forward pass dummy input through convolutional layers
         dummy_input = torch.zeros(
-            1,
+            8,
             p.conv.in_channels,
             p.conv.in_dimensions,
             p.conv.in_dimensions,
