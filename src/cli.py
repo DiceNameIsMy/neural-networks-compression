@@ -187,3 +187,15 @@ def configure_experiment1_parser(parser: argparse.ArgumentParser):
         required=True,
         help="Number of evaluations for accuracy evaluation (positive integer)",
     )
+    parser.add_argument(
+        "--plot",
+        action="store_true",
+        default=False,
+        help="Generate plots for the experiment results (default: False)",
+    )
+    parser.add_argument(
+        "--size",
+        choices=["full", "mini"],
+        default="mini",
+        help="Dataset size to use for the experiment. Default is 'mini'",
+    )

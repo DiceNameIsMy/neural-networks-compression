@@ -32,7 +32,11 @@ def main():
         from src.experiment1 import run_experiment1
 
         run_experiment1(
-            output_folder=args.output, evaluations=args.evaluations, epochs=args.epochs
+            output_folder=args.output,
+            evaluations=args.evaluations,
+            epochs=args.epochs,
+            plot=args.plot,
+            dataset_size=args.size,
         )
     else:
         raise ValueError(f"Not implemented mode: {args.mode}.")
