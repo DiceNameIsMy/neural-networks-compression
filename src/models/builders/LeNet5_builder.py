@@ -10,7 +10,6 @@ class LeNet5Builder(ArchitectureBuilder):
         return "LeNet5"
 
     def get_params(self) -> CNNParams:
-        train_loader, test_loader = self.p.DatasetCls.get_dataloaders(self.p.batch_size)
 
         # TODO: LeNet5 uses avg pool, but we use max pool here.
         conv_layers = [
@@ -22,6 +21,7 @@ class LeNet5Builder(ArchitectureBuilder):
                 pooling_kernel_size=2,
                 compression=self.p.conv_compression,
                 bitwidth=self.p.conv_bitwidth,
+                bias=False,
             ),
             ConvLayerParams(
                 channels=16,
@@ -30,6 +30,7 @@ class LeNet5Builder(ArchitectureBuilder):
                 pooling_kernel_size=2,
                 compression=self.p.conv_compression,
                 bitwidth=self.p.conv_bitwidth,
+                bias=False,
             ),
         ]
         fc_layers = [
@@ -49,8 +50,8 @@ class LeNet5Builder(ArchitectureBuilder):
         in_bitwidth = self._get_input_bitwidth()
 
         return CNNParams(
-            in_bitwidth=in_bitwidth,
             conv=conv_params,
             fc=fc_params,
             train=train_params,
+            in_bitwidth=in_bitwidth,
         )
