@@ -31,7 +31,9 @@ def main():
     elif args.mode == "experiment1":
         from src.experiment1 import run_experiment1
 
-        run_experiment1()
+        run_experiment1(
+            output_folder=args.output, evaluations=args.evaluations, epochs=args.epochs
+        )
     else:
         raise ValueError(f"Not implemented mode: {args.mode}.")
 

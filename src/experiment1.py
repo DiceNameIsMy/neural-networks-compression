@@ -1,10 +1,12 @@
 import logging
+import os
 from abc import ABC, abstractmethod
 from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
 
+from src.constants import POPULATION_FOLDER, REPORTS_FOLDER
 from src.datasets.dataset import CnnDataset
 from src.datasets.mnist_dataset import MiniMNIST32x32Dataset, MiniMNISTDataset
 from src.models.cnn import CNNParams, ConvLayerParams, ConvParams
@@ -37,9 +39,13 @@ class ArchitectureBuilder(ABC):
 
 class LeNet5Builder(ArchitectureBuilder):
     # Source: https://github.com/dvgodoy/dl-visuals/blob/main/Architectures/architecture_lenet.png
-    epochs: int = 1
-    early_stop_patience: int = 1
-    batch_size: int = 50
+
+    def __init__(
+        self, epochs: int = 1, early_stop_patience: int = 1, batch_size: int = 50
+    ):
+        self.epochs = epochs
+        self.early_stop_patience = early_stop_patience
+        self.batch_size = batch_size
 
     def get_name(self) -> str:
         return "LeNet5"
@@ -127,22 +133,36 @@ class LeNet5Builder(ArchitectureBuilder):
         return cnn_params
 
 
-def get_prefix() -> str:
-    return f"experiment1_{datetime.now().isoformat()}_"
+def get_prefix(output_folder: str | None = None) -> str:
+    if output_folder:
+        os.makedirs(output_folder, exist_ok=True)
+        return os.path.join(output_folder, "experiment1_")
+
+    timestamp = datetime.now().replace(microsecond=0).isoformat()
+    folder = os.path.join(REPORTS_FOLDER, timestamp)
+    os.makedirs(folder, exist_ok=True)
+
+    return os.path.join(folder, "experiment1_")
 
 
-def run_experiment1(plot: bool = False):
+def run_experiment1(
+    output_folder: str | None = None,
+    evaluations: int = 1,
+    epochs: int = 1,
+    plot: bool = False,
+):
     for DatasetCls in [MiniMNIST32x32Dataset]:
-        df = run_on_dataset(DatasetCls)
+        df = run_on_dataset(DatasetCls, epochs, evaluations)
 
-        df.to_csv(get_prefix() + "results.csv", index=False)
+        output_prefix = get_prefix(output_folder)
+        df.to_csv(output_prefix + "results.csv", index=False)
 
         if plot:
             plot_results(df)
 
         logger.info(f"Experiment 1 on dataset {DatasetCls.__name__} completed")
 
-    logger.info("Experiment 1 completed. Results saved to 'experiment1_results.csv'.")
+    logger.info("Experiment 1 completed")
 
 
 def plot_results(df: pd.DataFrame):
@@ -173,16 +193,17 @@ def plot_results(df: pd.DataFrame):
     fig.show()
 
 
-def run_on_dataset(DatasetCls: type[CnnDataset]) -> pd.DataFrame:
+def run_on_dataset(
+    DatasetCls: type[CnnDataset], epochs: int = 1, evaluations: int = 1
+) -> pd.DataFrame:
     datapoints = []
 
     logger.info(f"Running experiment on {DatasetCls.__name__} dataset...")
 
     # Run training
-    for architecture_builder in [LeNet5Builder()]:
+    for architecture_builder in [LeNet5Builder(epochs, epochs, DatasetCls.batch_size)]:
         for activation in Activation:
             for conv_compression in NNParamsCompMode:
-                # TODO: Remove
                 if conv_compression == NNParamsCompMode.TERNARY:
                     continue
 
@@ -195,23 +216,10 @@ def run_on_dataset(DatasetCls: type[CnnDataset]) -> pd.DataFrame:
                     conv_compression,
                     8,
                     activation,
+                    evaluations,
                 )
                 if full is not None:
                     datapoints.append(full)
-
-                # Without compressing the FC layers
-                partial = evaluate_compression(
-                    architecture_builder,
-                    DatasetCls,
-                    conv_compression,
-                    8,
-                    activation,
-                    NNParamsCompMode.NONE,
-                    8,
-                    Activation.RELU,
-                )
-                if partial is not None:
-                    datapoints.append(partial)
 
     logger.info(
         f"Collected {len(datapoints)} datapoints for {DatasetCls.__name__} dataset"
@@ -229,6 +237,7 @@ def evaluate_compression(
     fc_compression: NNParamsCompMode,
     fc_bitwidth: int,
     fc_activation: Activation,
+    evaluate_times: int = 1,
 ) -> dict | None:
     logger.info(
         f"Evaluating {architecture_builder.get_name()} with "
@@ -247,7 +256,7 @@ def evaluate_compression(
     evaluator = NNArchitectureEvaluator(model_params.train)
 
     try:
-        stats = evaluator.evaluate_accuracy(model_params, times=1)
+        stats = evaluator.evaluate_accuracy(model_params, times=evaluate_times)
     except Exception:
         logger.info(
             f"Failed to evaluate {architecture_builder.get_name()} with"

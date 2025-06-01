@@ -61,10 +61,12 @@ def parse_args():
     )
     configure_export_model_parser(parser_export_model)
 
-    subparsers.add_parser(
+    parser_experiment1 = subparsers.add_parser(
         "experiment1",
         help="Run experiment No. 1",
     )
+    configure_experiment1_parser(parser_experiment1)
+
     subparsers.add_parser(
         "experiment2",
         help="Run experiment No. 2 (TODO)",
@@ -163,4 +165,25 @@ def configure_export_model_parser(parser: argparse.ArgumentParser):
         type=is_filename,
         required=True,
         help="Filename of the model to export (not path, just filename)",
+    )
+
+
+def configure_experiment1_parser(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        "-O",
+        "--output",
+        help="Folder to store outputs (optional). If not specified, uses ./reports/<iso_timestamp>/",
+    )
+    parser.add_argument(
+        "-e",
+        "--epochs",
+        type=is_positive_int,
+        required=True,
+        help="Number of epochs to run per model training (positive integer)",
+    )
+    parser.add_argument(
+        "--evaluations",
+        type=is_positive_int,
+        required=True,
+        help="Number of evaluations for accuracy evaluation (positive integer)",
     )

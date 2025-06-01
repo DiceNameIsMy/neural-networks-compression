@@ -17,7 +17,7 @@ def get_pareto_points(x, y):
             continue
 
         last = pareto_front[-1]
-        if point[1] <= last[1]:
+        if point[1] < last[1]:
             pareto_front.append(point)
 
     return pareto_front
