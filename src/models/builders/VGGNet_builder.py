@@ -6,8 +6,7 @@ from src.models.mlp import FCLayerParams
 class VGGNetBuilder(ArchitectureBuilder):
     # Source: TODO
 
-    def get_name(self) -> str:
-        return "LeNet5"
+    name = "VGGNet"
 
     def get_params(self) -> CNNParams:
         conv_layers = [

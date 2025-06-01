@@ -8,11 +8,7 @@ import plotly.express as px
 from src.constants import REPORTS_FOLDER
 from src.datasets.cifar10_dataset import CIFAR10Dataset, MiniCIFAR10Dataset
 from src.datasets.dataset import CnnDataset
-from src.datasets.mnist_dataset import (
-    MiniMNIST32x32Dataset,
-    MiniMNISTDataset,
-    MNIST32x32Dataset,
-)
+from src.datasets.mnist_dataset import MiniMNIST32x32Dataset, MNIST32x32Dataset
 from src.models.builders.architecture_builder import ArchitectureBuilder, BuilderParams
 from src.models.builders.LeNet5_builder import LeNet5Builder
 from src.models.builders.VGGNet_builder import VGGNetBuilder
@@ -93,7 +89,6 @@ def plot_results(df: pd.DataFrame, folder: str):
         dimensions=[
             "conv_activation",
             "conv_compression",
-            "fc_compression",
             "mean",
         ],
         color_continuous_scale=px.colors.sequential.Inferno,
@@ -106,7 +101,6 @@ def plot_results(df: pd.DataFrame, folder: str):
         dimensions=[
             "conv_activation",
             "conv_compression",
-            "fc_compression",
             "best",
         ],
         color_continuous_scale=px.colors.sequential.Inferno,
@@ -159,7 +153,7 @@ def evaluate_compression(builder: ArchitectureBuilder) -> dict | None:
     params = builder.get_params()
     evaluator = NNArchitectureEvaluator(params.train)
 
-    logger.info(f"Evaluating {builder.get_name()}")
+    logger.info(f"Evaluating {builder.name}")
     logger.info(
         f"{builder.p.conv_compression.name=}, {builder.p.conv_activation.activation.name=}"
     )
@@ -174,8 +168,8 @@ def evaluate_compression(builder: ArchitectureBuilder) -> dict | None:
 
     return {
         # Properties
-        "architecture": "LeNet5",
-        "dataset": MiniMNISTDataset.__name__,
+        "architecture": builder.name,
+        "dataset": builder.p.DatasetCls.__name__,
         "conv_compression": builder.p.conv_compression.name,
         "conv_activation": builder.p.conv_activation.activation.name,
         "fc_compression": builder.p.fc_compression.name,

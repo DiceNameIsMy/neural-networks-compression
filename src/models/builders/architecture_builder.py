@@ -27,14 +27,11 @@ class BuilderParams:
 
 
 class ArchitectureBuilder(ABC):
+    name: str = "Unset"
     p: BuilderParams
 
     def __init__(self, params: BuilderParams):
         self.p = params
-
-    @abstractmethod
-    def get_name(self) -> str:
-        pass
 
     @abstractmethod
     def get_params(self) -> CNNParams:

@@ -4,10 +4,9 @@ from src.models.mlp import FCLayerParams
 
 
 class LeNet5Builder(ArchitectureBuilder):
-    # Source: https://github.com/dvgodoy/dl-visuals/blob/main/Architectures/architecture_lenet.png
+    # Taken and adapted from: https://arxiv.org/abs/1605.04711
 
-    def get_name(self) -> str:
-        return "LeNet5"
+    name = "LeNet5"
 
     def get_params(self) -> CNNParams:
         conv_layers = [
