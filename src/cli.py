@@ -100,10 +100,22 @@ def configure_nas_mode_parser(parser: argparse.ArgumentParser):
         help="Number of training epochs (positive integer)",
     )
     parser.add_argument(
+        "--patience",
+        type=is_positive_int,
+        default=5,
+        help="Early stopping patience (positive integer, default: 5)",
+    )
+    parser.add_argument(
         "-b",
         "--batch-size",
         type=is_positive_int,
         help="Batch size for training (positive integer)",
+    )
+    parser.add_argument(
+        "--evaluations",
+        type=is_positive_int,
+        default=1,
+        help="Number of evaluations per architecture (positive integer, default: 1)",
     )
     parser.add_argument(
         "-g",
@@ -127,7 +139,7 @@ def configure_nas_mode_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "-O",
         "--output",
-        help="Output filename for the resulting population",
+        help="Output folder for the resulting population",
     )
     parser.add_argument(
         "-s",

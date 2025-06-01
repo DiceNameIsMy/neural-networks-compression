@@ -54,7 +54,9 @@ def run_nas_mode(args):
     run_nas_pipeline(
         dataset=args.dataset,
         epochs=args.epochs,
+        patience=args.patience,
         batch_size=args.batch_size,
+        evaluations_per_arch=args.evaluations,
         population_size=args.population,
         offspring_count=args.offspring,
         generations=args.generations,

@@ -23,7 +23,9 @@ def get_prefix(path: str | None = None) -> str:
 def run_nas_pipeline(
     dataset: str,
     epochs: int | None,
+    patience: int,
     batch_size: int | None,
+    evaluations_per_arch: int,
     population_size: int | None,
     offspring_count: int | None,
     generations: int,
@@ -43,8 +45,8 @@ def run_nas_pipeline(
         nas_params = NasParams(
             batch_size=batch_size,
             epochs=epochs or 1,
-            patience=5,
-            amount_of_evaluations=1,
+            patience=patience,
+            amount_of_evaluations=evaluations_per_arch,
             population_size=population_size or 10,
             population_offspring_count=offspring_count or 4,
             algorithm_generations=generations,
@@ -57,8 +59,8 @@ def run_nas_pipeline(
         nas_params = NasParams(
             batch_size=batch_size,
             epochs=epochs or 10,
-            patience=5,
-            amount_of_evaluations=1,
+            patience=patience,
+            amount_of_evaluations=evaluations_per_arch,
             population_size=population_size or 20,
             population_offspring_count=offspring_count or 8,
             algorithm_generations=generations,
