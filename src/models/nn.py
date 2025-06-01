@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from src.constants import EPOCHS, LEARNING_RATE, MODELS_FOLDER
+from src.constants import EPOCHS, LEARNING_RATE
 from src.datasets.dataset import Dataset
 from src.models.compression import binary, binary_ReSTE
 from src.models.compression.enums import Activation, QMode
@@ -69,24 +69,22 @@ class NNTrainParams:
     early_stop_patience: int = 5
 
 
-def save_model(model: torch.nn.Module, filename: str, override: bool = False):
-    if not os.path.exists(MODELS_FOLDER):
-        os.makedirs(MODELS_FOLDER)
+def save_model(model: torch.nn.Module, file: str, override: bool = False):
+    if not os.path.exists(os.path.dirname(file)):
+        os.makedirs(os.path.dirname(file), exist_ok=True)
 
-    path = os.path.join(MODELS_FOLDER, filename)
-    if os.path.exists(path) and not override:
-        raise Exception(f"File {path} already exists. Unable to store model here.")
+    if os.path.exists(file) and not override:
+        raise Exception(f"File {file} already exists. Unable to store model here.")
 
-    torch.save(model.state_dict(), path)
+    torch.save(model.state_dict(), file)
 
-    logger.info(f"Model `{filename}` was stored at {path}")
+    logger.info(f"Model {os.path.basename(file)} was stored")
 
 
-def load_model(model: torch.nn.Module, filename: str):
-    path = os.path.join(MODELS_FOLDER, filename)
-    if not os.path.exists(path):
-        raise Exception(f"Path {path} does not exist")
+def load_model(model: torch.nn.Module, file: str):
+    if not os.path.exists(file):
+        raise Exception(f"Path {file} does not exist")
 
-    model.load_state_dict(torch.load(path))
+    model.load_state_dict(torch.load(file))
     model.eval()  # Set the model to evaluation mode
     return model

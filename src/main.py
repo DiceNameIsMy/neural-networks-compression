@@ -61,7 +61,7 @@ def run_nas_mode(args):
         offspring_count=args.offspring,
         generations=args.generations,
         store_models=args.store_models,
-        output_file=args.output,
+        output_folder=args.output,
         histogram=args.histogram,
         pareto=args.pareto,
     )

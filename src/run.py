@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_prefix(path: str | None = None) -> str:
-    return get_reporting_folder(path) + "/nas_"
+    return get_reporting_folder(path)
 
 
 def run_nas_pipeline(
@@ -30,13 +30,13 @@ def run_nas_pipeline(
     offspring_count: int | None,
     generations: int,
     store_models: bool,
-    output_file: str | None,
+    output_folder: str | None,
     histogram: bool,
     pareto: bool,
 ):
     # TODO: Parametrize other parameters too
-    prefix = get_prefix(output_file)
-    output_file = output_file or prefix + "/population.csv"
+    prefix = get_prefix(output_folder)
+    population_output = prefix + "/population.csv"
 
     CnnDatasetClass = try_get_cnn_dataset(dataset)
     MlpDatasetClass = try_get_mlp_dataset(dataset)
@@ -50,7 +50,7 @@ def run_nas_pipeline(
             population_size=population_size or 10,
             population_offspring_count=offspring_count or 4,
             algorithm_generations=generations,
-            population_store_file=output_file
+            population_store_file=population_output
             or (CnnDatasetClass.__name__ + "_population.csv"),
         )
         problem = CnnNasProblem(nas_params, CnnDatasetClass)
@@ -64,7 +64,7 @@ def run_nas_pipeline(
             population_size=population_size or 20,
             population_offspring_count=offspring_count or 8,
             algorithm_generations=generations,
-            population_store_file=output_file
+            population_store_file=population_output
             or MlpDatasetClass.__name__ + "_population.csv",
         )
         problem = MlpNasProblem(nas_params, MlpDatasetClass)
@@ -92,11 +92,11 @@ def run_nas_pipeline(
 
     if histogram:
         hist_fig = hist_accuracies(df["Accuracy"])
-        hist_fig.savefig(prefix + "histogram.png")
+        hist_fig.savefig(prefix + "/histogram.png")
 
     if pareto:
         pareto_fig = plot_pareto_front(df["Accuracy"], df["Complexity"])
-        pareto_fig.savefig(prefix + "pareto.png")
+        pareto_fig.savefig(prefix + "/pareto.png")
 
     print(df.to_string(index=False, columns=["Accuracy", "Complexity", "Chromosome"]))
 
