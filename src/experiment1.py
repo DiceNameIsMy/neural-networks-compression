@@ -19,10 +19,10 @@ from src.models.nn import ActivationParams
 logger = logging.getLogger(__name__)
 
 
-def get_prefix(output_folder: str | None = None) -> str:
-    if output_folder:
-        os.makedirs(output_folder, exist_ok=True)
-        return os.path.join(output_folder, "experiment1_")
+def get_prefix(parh: str | None = None) -> str:
+    if parh:
+        os.makedirs(parh, exist_ok=True)
+        return os.path.join(parh, "experiment1_")
 
     timestamp = datetime.now().replace(microsecond=0).isoformat()
     folder = os.path.join(REPORTS_FOLDER, timestamp)
@@ -52,10 +52,10 @@ def run_experiment1(
     plot: bool = False,
     dataset_size: str = "mini",
 ):
-    output_folder = get_prefix(output_folder)
+    path = get_prefix(output_folder)
 
     # Add file handler for this experiment
-    log_filename = output_folder + "experiment.log"
+    log_filename = path + ".log"
     file_handler = logging.FileHandler(log_filename)
     file_handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
@@ -73,10 +73,10 @@ def run_experiment1(
     for DatasetCls, BuilderCls in pairs:
         df = run(DatasetCls, BuilderCls, epochs, evaluations)
 
-        df.to_csv(output_folder + "results.csv", index=False)
+        df.to_csv(path + "results.csv", index=False)
 
         if plot:
-            plot_results(df, output_folder)
+            plot_results(df, path)
 
         logger.info(f"Experiment 1 on dataset {DatasetCls.__name__} completed")
 
