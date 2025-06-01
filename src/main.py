@@ -28,8 +28,12 @@ def main():
         run_nas_mode(args)
     elif args.mode == "export":
         export_model_mode(args)
+    elif args.mode == "experiment1":
+        from src.experiment1 import run_experiment1
+
+        run_experiment1()
     else:
-        raise ValueError(f"Unknown mode: {args.mode}. Expected 'nas' or 'export'.")
+        raise ValueError(f"Not implemented mode: {args.mode}.")
 
 
 def run_nas_mode(args):

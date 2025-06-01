@@ -38,6 +38,13 @@ def parse_args():
         epilog="Example: %(prog)s nas -d vertebral -e 20 -g 10 -p 20 -o 12 -s",
     )
 
+    parser.add_argument(
+        "-l",
+        "--logging",
+        choices=["debug", "info", "warning"],
+        default="info",
+    )
+
     subparsers = parser.add_subparsers(
         title="modes", dest="mode", help="Select a mode to run", required=True
     )
@@ -53,6 +60,19 @@ def parse_args():
         help="Export a trained model. (TODO)",
     )
     configure_export_model_parser(parser_export_model)
+
+    subparsers.add_parser(
+        "experiment1",
+        help="Run experiment No. 1",
+    )
+    subparsers.add_parser(
+        "experiment2",
+        help="Run experiment No. 2 (TODO)",
+    )
+    subparsers.add_parser(
+        "experiment3",
+        help="Run experiment No. 3 (TODO)",
+    )
 
     args = parser.parse_args()
 
@@ -134,12 +154,6 @@ def configure_nas_mode_parser(parser: argparse.ArgumentParser):
         type=is_filename,
         help="Output filename for pareto front (not path, just filename)",
     )
-    parser.add_argument(
-        "-l",
-        "--logging",
-        choices=["debug", "info", "warning"],
-        default="info",
-    )
 
 
 def configure_export_model_parser(parser: argparse.ArgumentParser):
@@ -149,10 +163,4 @@ def configure_export_model_parser(parser: argparse.ArgumentParser):
         type=is_filename,
         required=True,
         help="Filename of the model to export (not path, just filename)",
-    )
-    parser.add_argument(
-        "-l",
-        "--logging",
-        choices=["debug", "info", "warning"],
-        default="info",
     )
