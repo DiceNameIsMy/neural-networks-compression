@@ -1,4 +1,5 @@
 import logging
+import os
 
 import pandas as pd
 from pymoo.optimize import minimize
@@ -10,8 +11,13 @@ from src.nas.cnn_nas_problem import CnnNasProblem
 from src.nas.mlp_nas_problem import MlpNasProblem
 from src.nas.nas_params import NasParams
 from src.nas.plot import hist_accuracies, plot_pareto_front
+from src.reporting import get_reporting_folder
 
 logger = logging.getLogger(__name__)
+
+
+def get_prefix(path: str | None = None) -> str:
+    return get_reporting_folder(path) + "/nas_"
 
 
 def run_nas_pipeline(
@@ -23,10 +29,12 @@ def run_nas_pipeline(
     generations: int,
     store_models: bool,
     output_file: str | None,
-    histogram: str | None,
-    pareto: str | None,
+    histogram: bool,
+    pareto: bool,
 ):
     # TODO: Parametrize other parameters too
+    prefix = get_prefix(output_file)
+    output_file = output_file or prefix + "/population.csv"
 
     CnnDatasetClass = try_get_cnn_dataset(dataset)
     MlpDatasetClass = try_get_mlp_dataset(dataset)
@@ -67,23 +75,26 @@ def run_nas_pipeline(
     logger.info("NAS has finished")
 
     if store_models:
+        models_folder = prefix + "/models"
+        os.makedirs(models_folder, exist_ok=True)
+
         for chromosome, (accuracy, model) in problem.best_architecture.items():
             if chromosome in map(tuple, df["Chromosome"].values):
                 chromosome_str = "-".join(map(str, chromosome))
                 accuracy_str = str(round(accuracy, 4))
                 save_model(
                     model,
-                    f"{problem.DatasetCls.__name__}_{accuracy_str}_{chromosome_str}.pt",
+                    models_folder + f"/{accuracy_str}_{chromosome_str}.pt",
                     override=True,
                 )
 
-    if histogram is not None:
+    if histogram:
         hist_fig = hist_accuracies(df["Accuracy"])
-        hist_fig.savefig(histogram)
+        hist_fig.savefig(prefix + "histogram.png")
 
-    if pareto is not None:
+    if pareto:
         pareto_fig = plot_pareto_front(df["Accuracy"], df["Complexity"])
-        pareto_fig.savefig(pareto)
+        pareto_fig.savefig(prefix + "pareto.png")
 
     print(df.to_string(index=False, columns=["Accuracy", "Complexity", "Chromosome"]))
 

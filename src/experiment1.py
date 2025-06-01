@@ -1,11 +1,8 @@
 import logging
-import os
-from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
 
-from src.constants import REPORTS_FOLDER
 from src.datasets.cifar10_dataset import CIFAR10Dataset, MiniCIFAR10Dataset
 from src.datasets.dataset import CnnDataset
 from src.datasets.mnist_dataset import MiniMNIST32x32Dataset, MNIST32x32Dataset
@@ -15,20 +12,13 @@ from src.models.builders.VGGNet_builder import VGGNetBuilder
 from src.models.compression.enums import Activation, NNParamsCompMode
 from src.models.eval import NNArchitectureEvaluator
 from src.models.nn import ActivationParams
+from src.reporting import get_reporting_folder
 
 logger = logging.getLogger(__name__)
 
 
-def get_prefix(parh: str | None = None) -> str:
-    if parh:
-        os.makedirs(parh, exist_ok=True)
-        return os.path.join(parh, "experiment1_")
-
-    timestamp = datetime.now().replace(microsecond=0).isoformat()
-    folder = os.path.join(REPORTS_FOLDER, timestamp)
-    os.makedirs(folder, exist_ok=True)
-
-    return os.path.join(folder, "experiment1_")
+def get_prefix(path: str | None = None) -> str:
+    return get_reporting_folder(path) + "/experiment1_"
 
 
 full_dataset_architecture_pairs: list[

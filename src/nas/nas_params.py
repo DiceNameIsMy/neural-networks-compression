@@ -132,12 +132,12 @@ class NasParams:
             return np.array([])
 
     @staticmethod
-    def store_population(res: Result, filename: str):
+    def store_population(res: Result, file: str | None):
+        if file is None:
+            file = POPULATION_FOLDER + "/population.csv"
 
         # Create cache directory if it does not exist
-        if not os.path.exists(POPULATION_FOLDER):
-            os.makedirs(POPULATION_FOLDER)
+        if not os.path.exists(file):
+            os.makedirs(os.path.dirname(file), exist_ok=True)
 
-        pd.DataFrame(res.X).to_csv(
-            os.path.join(POPULATION_FOLDER, filename), index=False
-        )
+        pd.DataFrame(res.X).to_csv(file, index=False)

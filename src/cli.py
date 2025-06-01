@@ -24,14 +24,6 @@ def is_positive_int(value):
         raise argparse.ArgumentTypeError(f"{value} is not a valid integer")
 
 
-def is_filename(value):
-    # Only allow filenames, not paths
-    is_filename = "/" in value or "\\" in value
-    if not is_filename:
-        raise argparse.ArgumentTypeError(f"{value} must be a filename, not a path")
-    return value
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Neural Architecture Search CLI for quantized neural networks.",
@@ -135,8 +127,7 @@ def configure_nas_mode_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "-O",
         "--output",
-        type=is_filename,
-        help="Output filename for the resulting population (not path, just filename)",
+        help="Output filename for the resulting population",
     )
     parser.add_argument(
         "-s",
@@ -147,14 +138,16 @@ def configure_nas_mode_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "-H",
         "--histogram",
-        type=is_filename,
-        help="Output filename for histogram (not path, just filename)",
+        action="store_true",
+        default=False,
+        help="Plot a histogram of accuracies",
     )
     parser.add_argument(
         "-P",
         "--pareto",
-        type=is_filename,
-        help="Output filename for pareto front (not path, just filename)",
+        action="store_true",
+        default=False,
+        help="Plot a pareto front",
     )
 
 
@@ -162,9 +155,8 @@ def configure_export_model_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
         "-f",
         "--filename",
-        type=is_filename,
         required=True,
-        help="Filename of the model to export (not path, just filename)",
+        help="Filename of the model to export",
     )
 
 
