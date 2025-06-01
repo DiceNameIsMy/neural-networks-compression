@@ -84,7 +84,7 @@ class CnnNasProblem(NasProblem):
 
     def _get_conv_layers(self, ch: CNNChromosome) -> list[ConvLayerParams]:
         layers = []
-        for i in range(ch.conv_layers):
+        for i in range(1, ch.conv_layers + 1):
             layers.append(
                 ConvLayerParams(
                     channels=getattr(ch, f"conv_channels{i}"),
