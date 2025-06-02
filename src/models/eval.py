@@ -191,22 +191,35 @@ class NNArchitectureEvaluator:
         self.kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
     def evaluate_accuracy(self, params: MLPParams | CNNParams, times=1):
-        best_model = None
-        accuracies = []
+        """
+        Accuracy is represented by an average accuracy across all folds on a single dataset split.
 
-        for train_loader, test_loader in self.get_dataloaders(
+        For example, given 5 folds(n_splits) and parameter times=3, 15 models will be trained and tested.
+        5 models will be trained for each fold, average accuraacy computed. It will happend 3 times.
+        mean and max accuracies will be computed using these 3 average accuracies.
+        """
+        best_model = None
+        all_accuracies = []
+        accuracies_per_fold: list[list[float]] = []
+
+        dataloaders = self.get_dataloaders(
             self.kfold, self.train.DatasetCls, self.train.batch_size
-        ):
+        )
+        for train_loader, test_loader in dataloaders:
             self.train.train_loader = train_loader
             self.train.test_loader = test_loader
 
             evaluator = NNArchitectureAccuracyEvaluator(params)
             stats = evaluator.evaluate_accuracy(times)
 
-            if best_model is None or stats["max"] > max(accuracies):
+            if best_model is None or stats["max"] > max(all_accuracies):
                 best_model = stats["best_model"]
 
-            accuracies += stats["accuracies"]
+            all_accuracies.extend(stats["accuracies"])
+            accuracies_per_fold.append(stats["accuracies"])
+
+        accuracies_per_dataset_run = np.column_stack(accuracies_per_fold)
+        accuracies = np.mean(accuracies_per_dataset_run, axis=1)
 
         return {
             "max": max(accuracies),
