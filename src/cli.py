@@ -186,6 +186,12 @@ def configure_experiment1_parser(parser: argparse.ArgumentParser):
         help="Number of epochs to run per model training (positive integer)",
     )
     parser.add_argument(
+        "--patience",
+        type=is_positive_int,
+        required=True,
+        help="Early stopping patience (positive integer, default: 5)",
+    )
+    parser.add_argument(
         "--evaluations",
         type=is_positive_int,
         required=True,

@@ -40,6 +40,7 @@ def run_experiment1(
     output_folder: str,
     evaluations: int = 1,
     epochs: int = 1,
+    patience: int = 1,
     plot: bool = False,
     dataset_size: str = "mini",
 ):
@@ -49,7 +50,7 @@ def run_experiment1(
         pairs = mini_dataset_architecture_pairs
 
     for DatasetCls, BuilderCls in pairs:
-        df = run(DatasetCls, BuilderCls, epochs, evaluations)
+        df = run(DatasetCls, BuilderCls, epochs, patience, evaluations)
 
         df.to_csv(os.path.join(output_folder, "results.csv"), index=False)
 
@@ -91,6 +92,7 @@ def run(
     DatasetCls: type[CnnDataset],
     BuilderCls: type[ArchitectureBuilder],
     epochs: int = 1,
+    patience: int = 1,
     evaluate_times: int = 1,
 ) -> pd.DataFrame:
     datapoints = []
@@ -112,7 +114,7 @@ def run(
                 fc_activation=ActivationParams(activation),
                 DatasetCls=DatasetCls,
                 epochs=epochs,
-                early_stop_patience=1,
+                early_stop_patience=patience,
                 batch_size=DatasetCls.batch_size,
                 evaluate_times=evaluate_times,
             )

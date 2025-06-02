@@ -36,6 +36,7 @@ def main():
             output_folder=output_folder,
             evaluations=args.evaluations,
             epochs=args.epochs,
+            patience=args.patience,
             plot=args.plot,
             dataset_size=args.size,
         )
