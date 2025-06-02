@@ -47,25 +47,20 @@ class MyIntegerRandomSampling(IntegerRandomSampling):
         super().__init__()
 
     def _do(self, problem, n_samples, **kwargs):
-        n_preexisting = len(self.extend_by) if self.extend_by is not None else 0
-        sampled = self._do_sampling(problem, n_samples, problem.n_var - n_preexisting)
-
-        if self.extend_by is None:
-            return sampled
-
-        if len(self.extend_by) == 0:
+        extend_by = self.extend_by
+        if extend_by is None:
+            extend_by = np.array([])
+        else:
             self.extend_by = None
-            return sampled
 
-        result = np.concatenate((sampled, self.extend_by))
-        self.extend_by = None
-        return result
+        n_preexisting = len(extend_by)
 
-    def _do_sampling(self, problem, n_samples, n_var: int):
-        n, (xl, xu) = n_var, problem.bounds()
-        return np.column_stack(
-            [np.random.randint(xl[k], xu[k] + 1, size=n_samples) for k in range(n)]
-        )
+        sampled = super()._do(problem, n_samples - n_preexisting, **kwargs)
+
+        if len(extend_by) > 0:
+            sampled = np.concatenate((sampled, extend_by))
+
+        return sampled
 
 
 @dataclass
@@ -98,7 +93,7 @@ class NasParams:
             logger.info("Using random initial population")
         else:
             logger.info(
-                f"Initial population loaded from `{self.population_store_file}` successfully"
+                f"Loaded initial population of size {len(population)} from `{self.population_store_file}`"
             )
 
         sampling = MyIntegerRandomSampling(population)
@@ -120,16 +115,15 @@ class NasParams:
         if filename is None:
             return None
 
-        path = os.path.join(POPULATION_FOLDER, filename)
-        if not os.path.exists(path):
+        if not os.path.exists(filename):
             return None
 
         try:
-            df = pd.read_csv(path)
+            df = pd.read_csv(filename)
             return df.values
         except EmptyDataError as e:
-            logger.error(f"Failed to load population from {path}: {e}")
-            return np.array([])
+            logger.error(f"Failed to load population from {filename}: {e}")
+            return None
 
     @staticmethod
     def store_population(res: Result, file: str | None):
