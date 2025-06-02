@@ -57,6 +57,6 @@ class MiniCIFAR10Dataset(CIFAR10Dataset):
     @classmethod
     def get_xy(cls) -> tuple[torch.Tensor, torch.Tensor]:
         X, y = super().get_xy()
-        X = X[:4000]
-        y = y[:4000]
+        X = X[:8000]
+        y = y[:8000]
         return X, y
