@@ -90,25 +90,25 @@ class ConvParams:
         for layer in self.layers:
             reduce_image_by = layer.kernel_size // 2 + layer.padding
             out_dimensions = (in_dimensions - reduce_image_by) // layer.stride
-
-            # Multiple Accumulate (MAC)
-            mac_ops_per_out_channel = in_channels * out_dimensions**2
-            mac_ops = mac_ops_per_out_channel * layer.channels
+            out_channels = layer.channels
 
             # Convolution complexity
+            mac_ops_per_out_channel = in_channels * out_dimensions**2
+            mac_ops = mac_ops_per_out_channel * out_channels
             complexity += mac_ops * layer.get_conv_complexity_coefficient()
 
             # Activation complexity
-            out_size = out_dimensions**2 * layer.channels
-            complexity += (
-                out_size * self.activation.get_activation_complexity_coefficient()
-            )
+            out_size = out_dimensions**2 * out_channels
+            complexity += out_size * self.activation.get_activation_complexity_coef()
 
             # Pooling compexity
             if layer.add_max_pooling():
                 # Accumulate
                 acc_ops = (out_dimensions // 2) ** 2
                 complexity += acc_ops
+
+            in_dimensions = out_dimensions
+            in_channels = out_channels
 
         return complexity
 

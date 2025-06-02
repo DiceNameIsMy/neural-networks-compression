@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from torch import nn
 
 from src.models.compression import binary, ternarize, weight_quant
-from src.models.compression.enums import Activation, NNParamsCompMode, QMode
+from src.models.compression.enums import NNParamsCompMode, QMode
 from src.models.compression.weight_quant import Quantize
 from src.models.nn import ActivationParams, NNTrainParams
 
@@ -37,7 +37,7 @@ class FCLayerParams:
                     + f"{self.compression} of type {type(self.compression)}"
                 )
 
-    def get_complexity_coefficient(self) -> float:
+    def get_compression_complexity_coef(self) -> float:
         match self.compression:
             case NNParamsCompMode.NONE:
                 return 32.0
@@ -66,15 +66,18 @@ class FCParams:
         complexity = 0
 
         prev_layer = self.layers[0]
-        for layer in self.layers[1:]:
-            # TODO: consider bias
+
+        without_last_layer = self.layers[1:]
+
+        for layer in without_last_layer:
             mac_ops = prev_layer.height * layer.height
-            complexity += mac_ops * layer.get_complexity_coefficient()
+
+            complexity += mac_ops * layer.get_compression_complexity_coef()
+            complexity += (
+                layer.height * self.activation.get_activation_complexity_coef()
+            )
 
             prev_layer = layer
-
-        activation_coef = 3 if self.activation.activation == Activation.RELU else 1.2
-        complexity *= activation_coef
 
         return complexity
 

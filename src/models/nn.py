@@ -39,7 +39,7 @@ class ActivationParams:
                     + f"{self.activation} of type {type(self.activation)}"
                 )
 
-    def get_activation_complexity_coefficient(self) -> float:
+    def get_activation_complexity_coef(self) -> float:
         match self.activation:
             case Activation.NONE:
                 return 0.0
