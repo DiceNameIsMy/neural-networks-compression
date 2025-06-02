@@ -37,25 +37,12 @@ mini_dataset_architecture_pairs: list[
 
 
 def run_experiment1(
-    output_folder: str | None = None,
+    output_folder: str,
     evaluations: int = 1,
     epochs: int = 1,
     plot: bool = False,
     dataset_size: str = "mini",
 ):
-    path = get_prefix(output_folder)
-
-    # Add file handler for this experiment
-    log_filename = path + ".log"
-    file_handler = logging.FileHandler(log_filename)
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
-    )
-
-    # Add file handler to root logger to capture all logs
-    root_logger = logging.getLogger()
-    root_logger.addHandler(file_handler)
-
     if dataset_size == "full":
         pairs = full_dataset_architecture_pairs
     elif dataset_size == "mini":
@@ -64,10 +51,10 @@ def run_experiment1(
     for DatasetCls, BuilderCls in pairs:
         df = run(DatasetCls, BuilderCls, epochs, evaluations)
 
-        df.to_csv(path + "results.csv", index=False)
+        df.to_csv(os.path.join(output_folder, "results.csv"), index=False)
 
         if plot:
-            plot_results(df, path)
+            plot_results(df, output_folder)
 
         logger.info(f"Experiment 1 on dataset {DatasetCls.__name__} completed")
 
@@ -84,7 +71,7 @@ def plot_results(df: pd.DataFrame, folder: str):
         ],
         color_continuous_scale=px.colors.sequential.Inferno,
     )
-    fig.write_html(folder + "mean_accuracy.html")
+    fig.write_html(os.path.join(folder + "mean_accuracy.html"))
     fig.show()
 
     fig = px.parallel_categories(
@@ -96,7 +83,7 @@ def plot_results(df: pd.DataFrame, folder: str):
         ],
         color_continuous_scale=px.colors.sequential.Inferno,
     )
-    fig.write_html(folder + "best_accuracy.html")
+    fig.write_html(os.path.join(folder + "best_accuracy.html"))
     fig.show()
 
 
