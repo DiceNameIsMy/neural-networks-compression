@@ -12,7 +12,7 @@ from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
 
-from src.constants import EPOCHS, POPULATION_FOLDER
+from src.constants import EPOCHS
 
 logger = logging.getLogger(__name__)
 
@@ -126,11 +126,7 @@ class NasParams:
             return None
 
     @staticmethod
-    def store_population(res: Result, file: str | None):
-        if file is None:
-            file = os.path.join(POPULATION_FOLDER, "population.csv")
-
-        # Create cache directory if it does not exist
+    def store_population(res: Result, file: str):
         if not os.path.exists(file):
             os.makedirs(os.path.dirname(file), exist_ok=True)
 
