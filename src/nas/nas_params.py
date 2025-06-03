@@ -66,7 +66,7 @@ class MyIntegerRandomSampling(IntegerRandomSampling):
 @dataclass
 class NasParams:
     # Architecture evaluation
-    batch_size: int | None = None
+    batch_size: int
     epochs: int = EPOCHS
     patience: int = 5
     amount_of_evaluations: int = 1

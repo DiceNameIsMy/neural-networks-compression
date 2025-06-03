@@ -24,7 +24,7 @@ def run_nas_pipeline(
     dataset: str,
     epochs: int | None,
     patience: int,
-    batch_size: int | None,
+    batch_size: int,
     evaluations_per_arch: int,
     population_size: int | None,
     offspring_count: int | None,

@@ -109,6 +109,7 @@ def configure_nas_mode_parser(parser: argparse.ArgumentParser):
         "-b",
         "--batch-size",
         type=is_positive_int,
+        required=True,
         help="Batch size for training (positive integer)",
     )
     parser.add_argument(

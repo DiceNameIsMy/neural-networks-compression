@@ -50,6 +50,7 @@ class CnnNasProblem(NasProblem):
             DatasetCls=self.DatasetCls,
             train_loader=self.train_loader,
             test_loader=self.test_loader,
+            batch_size=self.p.batch_size,
             epochs=self.p.epochs,
             learning_rate=ch.learning_rate,
             weight_decay=ch.weight_decay,
