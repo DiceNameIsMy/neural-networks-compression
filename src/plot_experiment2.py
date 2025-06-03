@@ -18,7 +18,7 @@ def plot_report(folder: str, title: str, store: bool = True, **kwargs):
     fig = scatter_population(df, title=title, **kwargs)
 
     if store:
-        fig.write_image(os.path.join(folder, "population.png"), format="png")
+        fig.write_image(os.path.join(folder, "population.pdf"), format="pdf")
 
     return fig
 
@@ -41,11 +41,15 @@ def report_to_df(folder: str):
             nas_problem.get_nn_params(ch)
         ).evaluate_complexity()
 
+        ch_dict = asdict(ch)
+        ch_dict["activation"] = ch.activation.name
+        ch_dict["compression"] = ch.compression.name
+
         data.append(
             {
                 "acc": acc,
                 "cost": cost,
-                **asdict(ch),
+                **ch_dict,
             }
         )
 
@@ -82,6 +86,17 @@ def scatter_population(df: pd.DataFrame, *args, title="Title", **kwargs):
         **kwargs,
     )
     fig.update_xaxes(autorange="reversed")
-    fig.update_layout(margin=dict(autoexpand=True))
+    fig.update_layout(
+        legend={
+            "x": 0.99,
+            "y": 0.99,
+            "xanchor": "right",
+            "yanchor": "top",
+            "bgcolor": "rgba(240, 240, 240, 1)",
+            "bordercolor": "rgba(240, 240, 240, 1)",
+            "borderwidth": 3,
+        },
+    )
+    # fig.update(**style_dict)
 
     return fig

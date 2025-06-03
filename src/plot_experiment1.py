@@ -74,7 +74,7 @@ def make_plots_for_results(
     models, pareto = make_plots(df, title=title, **kwargs)
 
     if store:
-        models.write_image(os.path.join(folder, "population.png"), format="png")
-        pareto.write_image(os.path.join(folder, "pareto.png"), format="png")
+        models.write_image(os.path.join(folder, "population.pdf"), format="pdf")
+        pareto.write_image(os.path.join(folder, "pareto.pdf"), format="pdf")
 
     return models, pareto
