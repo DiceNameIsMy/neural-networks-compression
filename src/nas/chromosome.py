@@ -8,8 +8,8 @@ from src.models.compression.enums import Activation, NNParamsCompMode, QMode
 BITWIDTHS_MAPPING = (1, 2, 3, 4, 5, 6, 7, 8)
 
 ACTIVATION_MAPPING = tuple(act for act in Activation)
-RESTE_O_MAPPING = (1.5,)
-RESTE_THRESHOLD_MAPPING = (3.0,)
+RESTE_O_MAPPING = (3,)
+RESTE_THRESHOLD_MAPPING = (1.5,)
 QMODE_MAPPING = (QMode.DET,)
 NN_PARAMS_COMP_MODE_MAPPING = tuple(q for q in NNParamsCompMode)
 
