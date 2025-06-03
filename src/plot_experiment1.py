@@ -36,7 +36,7 @@ def scatter_population(df: pd.DataFrame, *args, title="Title", x="best", **kwarg
             "conv_compression": "Compression",
             "conv_activation": "Activation",
             "best": "Accuracy (%)",
-            "cost": "Model Complexity",
+            "cost": "Complexity",
         },
         template="plotly_white",
         **kwargs,
@@ -48,13 +48,10 @@ def scatter_population(df: pd.DataFrame, *args, title="Title", x="best", **kwarg
 
 
 def make_plots(
-    df: pd.DataFrame, title: str, x: str = "best"
+    df: pd.DataFrame, title: str, x: str = "best", **kwargs
 ) -> tuple[go.Figure, go.Figure]:
     models = scatter_population(
-        df,
-        title="Models for " + title,
-        height=520,
-        x=x,
+        df, title="Models for " + title, height=520, x=x, **kwargs
     )
 
     pareto_indices = get_pareto_indicies(df, x, "cost")
@@ -62,18 +59,22 @@ def make_plots(
         df.loc[pareto_indices],
         title="Pareto front of models for " + title,
         x=x,
+        **kwargs,
     )
 
     return models, pareto
 
 
-def make_plots_for_results(title: str, folder: str, csv_file: str):
+def make_plots_for_results(
+    title: str, folder: str, csv_file: str, store: bool = True, *args, **kwargs
+) -> tuple[go.Figure, go.Figure]:
     population_file = os.path.join(folder, csv_file)
     df = pd.read_csv(population_file)
 
-    models, pareto = make_plots(df, title=title)
+    models, pareto = make_plots(df, title=title, **kwargs)
 
-    models.write_image(os.path.join(folder, "population.png"), format="png")
-    pareto.write_image(os.path.join(folder, "pareto.png"), format="png")
+    if store:
+        models.write_image(os.path.join(folder, "population.png"), format="png")
+        pareto.write_image(os.path.join(folder, "pareto.png"), format="png")
 
     return models, pareto

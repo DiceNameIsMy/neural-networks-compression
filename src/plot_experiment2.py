@@ -13,9 +13,9 @@ from src.nas.mlp_nas_problem import MlpNasProblem
 from src.nas.nas_params import NasParams
 
 
-def plot_report(folder: str, title: str, store: bool = True):
+def plot_report(folder: str, title: str, store: bool = True, **kwargs):
     df = report_to_df(folder)
-    fig = scatter_population(df, title=title)
+    fig = scatter_population(df, title=title, **kwargs)
 
     if store:
         fig.write_image(os.path.join(folder, "population.png"), format="png")
@@ -76,7 +76,7 @@ def scatter_population(df: pd.DataFrame, *args, title="Title", **kwargs):
             "compression": "Compression",
             "activation": "Activation",
             "acc": "Accuracy (%)",
-            "cost": "Model Complexity",
+            "cost": "Complexity",
         },
         template="plotly_white",
         **kwargs,
