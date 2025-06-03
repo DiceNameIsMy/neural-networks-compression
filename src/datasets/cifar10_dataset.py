@@ -25,7 +25,7 @@ def fetch_cifar10_dataset():
 
 
 class CIFAR10Dataset(CnnDataset):
-    batch_size: int = 128
+    batch_size: int = 100
     input_channels: int = 3
     input_dimensions: int = 32
     input_size: int = 32 * 32 * 3

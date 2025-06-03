@@ -63,6 +63,7 @@ class ArchitectureBuilder(ABC):
             self.p.DatasetCls,
             train_loader,
             test_loader,
+            batch_size=self.p.batch_size,
             epochs=self.p.epochs,
             learning_rate=0.001,
             weight_decay=0.00001,

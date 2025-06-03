@@ -26,7 +26,7 @@ def fetch_mnist_dataset():
 
 
 class MNISTDataset(CnnDataset):
-    batch_size: int = 128
+    batch_size: int = 50
     input_channels: int = 1
     input_dimensions: int = 28
     input_size: int = 28 * 28
