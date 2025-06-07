@@ -5,20 +5,14 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 
-from src.datasets.dataset import CnnDataset, MlpDataset
-from src.models.eval import NNArchitectureComplexityEvaluator
 from src.nas.chromosome import ChromosomeConfig
 from src.nas.cnn_chromosome import CNNChromosome
-from src.nas.cnn_nas_problem import CnnNasProblem
 from src.nas.mlp_chromosome import MLPChromosome
-from src.nas.mlp_nas_problem import MlpNasProblem
 from src.nas.nas_params import NasParams
 
 
-def plot_mlp_report(
-    folder: str, DatasetCls: type[MlpDataset], store: bool = True, **kwargs
-):
-    df = mlp_report_to_df(folder, DatasetCls)
+def plot_mlp_report(folder: str, store: bool = True, **kwargs):
+    df = mlp_report_to_df(folder)
     fig = scatter_population(df, **kwargs)
 
     if store:
@@ -27,10 +21,8 @@ def plot_mlp_report(
     return fig
 
 
-def plot_cnn_report(
-    folder: str, DatasetCls: type[CnnDataset], store: bool = True, **kwargs
-):
-    df = cnn_report_to_df(folder, DatasetCls)
+def plot_cnn_report(folder: str, store: bool = True, **kwargs):
+    df = cnn_report_to_df(folder)
     fig = scatter_population(df, symbol="conv_compression", **kwargs)
 
     if store:
@@ -39,23 +31,18 @@ def plot_cnn_report(
     return fig
 
 
-def mlp_report_to_df(folder: str, DatasetCls: type[MlpDataset]):
+def mlp_report_to_df(folder: str):
     population = NasParams.load_population(os.path.join(folder, "population.csv"))
     if population is None:
         raise ValueError("Population is empty or not found.")
 
     cfg = ChromosomeConfig(MLPChromosome)
-    nas_params = NasParams(batch_size=32)
-    nas_problem = MlpNasProblem(nas_params, DatasetCls)
 
     data = []
-
-    for raw_ch in population:
-        ch = cfg.decode(raw_ch)
-        acc = find_acc(raw_ch, folder)
-        cost = NNArchitectureComplexityEvaluator(
-            nas_problem.get_nn_params(ch)
-        ).evaluate_complexity()
+    for pop in population:
+        acc = pop[0]
+        complexity = pop[1]
+        ch = cfg.decode(pop[2:].astype(int))
 
         ch_dict = asdict(ch)
         ch_dict["activation"] = ch.activation.name
@@ -64,7 +51,7 @@ def mlp_report_to_df(folder: str, DatasetCls: type[MlpDataset]):
         data.append(
             {
                 "acc": acc,
-                "cost": cost,
+                "cost": complexity,
                 **ch_dict,
             }
         )
@@ -73,30 +60,25 @@ def mlp_report_to_df(folder: str, DatasetCls: type[MlpDataset]):
     return df
 
 
-def cnn_report_to_df(folder: str, DatasetCls: type[CnnDataset]):
+def cnn_report_to_df(folder: str):
     population = NasParams.load_population(os.path.join(folder, "population.csv"))
     if population is None:
         raise ValueError("Population is empty or not found.")
 
     cfg = ChromosomeConfig(CNNChromosome)
-    nas_params = NasParams(batch_size=32)
-    nas_problem = CnnNasProblem(nas_params, DatasetCls)
 
     data = []
-
-    for raw_ch in population:
-        ch = cfg.decode(raw_ch)
-        acc = find_acc(raw_ch, folder)
-        cost = NNArchitectureComplexityEvaluator(
-            nas_problem.get_nn_params(ch)
-        ).evaluate_complexity()
+    for pop in population:
+        acc = pop[0]
+        complexity = pop[1]
+        ch = cfg.decode(pop[2:])
 
         ch_dict = asdict(ch)
         ch_dict["activation"] = ch.activation.name
         ch_dict["conv_compression"] = ch.conv_compression.name
         ch_dict["fc_compression"] = ch.fc_compression.name
 
-        data.append({"acc": acc, "cost": cost, **ch_dict, "chromosome": ch})
+        data.append({"acc": acc, "cost": complexity, **ch_dict, "chromosome": ch})
 
     df = pd.DataFrame(data)
     return df

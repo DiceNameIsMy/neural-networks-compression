@@ -147,9 +147,10 @@ def run_nas(
     termination = nas_params.get_termination()
 
     res = minimize(problem, algorithm, verbose=True, seed=SEED, termination=termination)
+    df = problem.result_as_df(res)
 
     if nas_params.population_store_file is not None:
-        nas_params.store_population(res, nas_params.population_store_file)
+        nas_params.store_population(df, nas_params.population_store_file)
 
     df = problem.result_as_df(res)
     return df

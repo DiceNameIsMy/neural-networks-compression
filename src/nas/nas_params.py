@@ -7,7 +7,6 @@ import pandas as pd
 from pandas.errors import EmptyDataError
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.core.repair import Repair
-from pymoo.core.result import Result
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import IntegerRandomSampling
@@ -88,6 +87,10 @@ class NasParams:
 
         if self.population_store_file is not None:
             population = self.load_population(self.population_store_file)
+            if population is not None:
+                population = population[
+                    :, 2:
+                ]  # Exclude accuracy and complexity columns
 
         if population is None or len(population) == 0:
             logger.info("Using random initial population")
@@ -126,8 +129,14 @@ class NasParams:
             return None
 
     @staticmethod
-    def store_population(res: Result, file: str):
+    def store_population(result_df: pd.DataFrame, file: str):
         if not os.path.exists(file):
             os.makedirs(os.path.dirname(file), exist_ok=True)
 
-        pd.DataFrame(res.X).to_csv(file, index=False)
+        data = []
+        for idx, (acc, complexity, raw_ch) in result_df[
+            ["Accuracy", "Complexity", "Chromosome"]
+        ].iterrows():
+            data.append([acc, complexity, *raw_ch])
+
+        pd.DataFrame(data).to_csv(file, index=False)

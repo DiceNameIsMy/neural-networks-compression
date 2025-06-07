@@ -193,14 +193,16 @@ class NasProblem(ElementwiseProblem):
             )
 
             ch = self.chromosome_cfg.decode(x)
-            params = self.get_nn_params(ch)
+            nn_params = self.get_nn_params(ch)
+            train_params = self.get_nn_train_params(ch)
 
             data.append(
                 {
                     "Accuracy": accuracy,
                     "Complexity": complexity,
-                    **asdict(params),
                     "Chromosome": x,
+                    "ModelParams": asdict(nn_params),
+                    "TrainParams": asdict(train_params),
                 }
             )
 
