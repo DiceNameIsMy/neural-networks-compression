@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from src.constants import EPOCHS, LEARNING_RATE
+from src.constants import DEVICE, EPOCHS, LEARNING_RATE
 from src.datasets.dataset import Dataset
 from src.models.compression import binary, binary_ReSTE
 from src.models.compression.enums import Activation, QMode
@@ -85,6 +85,6 @@ def load_model(model: torch.nn.Module, file: str):
     if not os.path.exists(file):
         raise Exception(f"Path {file} does not exist")
 
-    model.load_state_dict(torch.load(file))
+    model.load_state_dict(torch.load(file, map_location=torch.device(DEVICE)))
     model.eval()  # Set the model to evaluation mode
     return model
