@@ -10,7 +10,7 @@ from src.models.compression.conv import Conv2dWrapper
 from src.models.compression.enums import NNParamsCompMode, QMode
 from src.models.compression.weight_quant import Quantize
 from src.models.mlp import FCParams
-from src.models.nn import ActivationParams, NNTrainParams
+from src.models.nn import ActivationParams
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +117,6 @@ class ConvParams:
 class CNNParams:
     conv: ConvParams
     fc: FCParams
-    train: NNTrainParams
     in_bitwidth: int = 32
 
     def get_model(self) -> "CNN":

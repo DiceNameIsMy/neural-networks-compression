@@ -19,6 +19,18 @@ class CnnNasProblem(NasProblem):
     def __init__(self, params: NasParams, DatasetCls: type[CnnDataset]):
         super().__init__(params, DatasetCls, CNNChromosome)
 
+    def get_nn_train_params(self, ch: CNNChromosome) -> NNTrainParams:
+        return NNTrainParams(
+            DatasetCls=self.DatasetCls,
+            train_loader=self.train_loader,
+            test_loader=self.test_loader,
+            batch_size=self.p.batch_size,
+            epochs=self.p.epochs,
+            learning_rate=ch.learning_rate,
+            weight_decay=ch.weight_decay,
+            early_stop_patience=self.p.patience,
+        )
+
     def get_nn_params(self, ch: CNNChromosome) -> CNNParams:
         activation = ActivationParams(
             activation=ch.activation,
@@ -46,20 +58,9 @@ class CnnNasProblem(NasProblem):
             qmode=QMode.DET,
             dropout_rate=ch.dropout,
         )
-        train_params = NNTrainParams(
-            DatasetCls=self.DatasetCls,
-            train_loader=self.train_loader,
-            test_loader=self.test_loader,
-            batch_size=self.p.batch_size,
-            epochs=self.p.epochs,
-            learning_rate=ch.learning_rate,
-            weight_decay=ch.weight_decay,
-            early_stop_patience=self.p.patience,
-        )
         return CNNParams(
             conv=conv_params,
             fc=fc_params,
-            train=train_params,
             in_bitwidth=ch.in_bitwidth,
         )
 

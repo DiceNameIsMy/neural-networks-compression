@@ -12,6 +12,7 @@ from src.datasets.dataset import CnnDataset, MlpDataset
 from src.models.cnn import CNN, CNNParams
 from src.models.eval import NNArchitectureEvaluator
 from src.models.mlp import MLP, MLPParams
+from src.models.nn import NNTrainParams
 from src.nas.chromosome import Chromosome, ChromosomeConfig
 from src.nas.nas_params import NasParams
 
@@ -71,13 +72,14 @@ class NasProblem(ElementwiseProblem):
 
     def _evaluate(self, x, out, *args, **kwargs):
         ch = self.chromosome_cfg.decode(x)
-        params = self.get_nn_params(ch)
-        logger.debug(f"Evaluating {params}")
+        train_params = self.get_nn_train_params(ch)
+        nn_params = self.get_nn_params(ch)
+        logger.debug(f"Evaluating {nn_params}")
 
-        evaluator = NNArchitectureEvaluator(params.train)
+        evaluator = NNArchitectureEvaluator(train_params)
         try:
             stats = evaluator.evaluate_accuracy(
-                params, times=self.p.amount_of_evaluations
+                nn_params, times=self.p.amount_of_evaluations
             )
             self.store_model_if_is_is_good(x, stats["max"], stats["best_model"])
 
@@ -88,7 +90,11 @@ class NasProblem(ElementwiseProblem):
             logger.error(
                 f"Error during evaluation: {e}",
                 exc_info=True,
-                extra={"chromosome": x, "parsed_chromosome": ch, "nn_params": params},
+                extra={
+                    "chromosome": x,
+                    "parsed_chromosome": ch,
+                    "nn_params": nn_params,
+                },
             )
             accuracy = 0.0
 
@@ -97,7 +103,7 @@ class NasProblem(ElementwiseProblem):
         f1 = -norm_acc
 
         # Minimize NN complexity
-        complexity = evaluator.evaluate_complexity(params)
+        complexity = evaluator.evaluate_complexity(nn_params)
         norm_complexity = self.normalize(
             complexity, self.get_min_complexity(), self.get_max_complexity()
         )
@@ -128,6 +134,11 @@ class NasProblem(ElementwiseProblem):
             self.best_architecture.pop(worst_key)
             self.best_architecture[tuple(x)] = (accuracy, model)
 
+    def get_nn_train_params(self, ch: Chromosome) -> NNTrainParams:
+        raise NotImplementedError(
+            "get_nn_train_params method must be implemented in the subclass"
+        )
+
     def get_nn_params(self, ch: Chromosome) -> MLPParams | CNNParams:
         raise NotImplementedError(
             "get_nn_params method must be implemented in the subclass"
@@ -137,17 +148,19 @@ class NasProblem(ElementwiseProblem):
     def get_min_complexity(self) -> float:
         x = self.chromosome_cfg.get_bounds()[0]
         ch = self.chromosome_cfg.decode(x)
-        params = self.get_nn_params(ch)
-        evaluator = NNArchitectureEvaluator(params.train)
-        complexity = evaluator.evaluate_complexity(params)
+        train_params = self.get_nn_train_params(ch)
+        nn_params = self.get_nn_params(ch)
+        evaluator = NNArchitectureEvaluator(train_params)
+        complexity = evaluator.evaluate_complexity(nn_params)
         return complexity
 
     @lru_cache(maxsize=1)
     def get_max_complexity(self) -> float:
         x = self.chromosome_cfg.get_bounds()[1]
         ch = self.chromosome_cfg.decode(x)
+        train_params = self.get_nn_train_params(ch)
         params = self.get_nn_params(ch)
-        evaluator = NNArchitectureEvaluator(params.train)
+        evaluator = NNArchitectureEvaluator(train_params)
         complexity = evaluator.evaluate_complexity(params)
         return complexity
 

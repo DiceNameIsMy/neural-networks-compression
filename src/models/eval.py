@@ -43,11 +43,13 @@ class NNArchitectureComplexityEvaluator:
 
 
 class NNArchitectureAccuracyEvaluator:
+    train: NNTrainParams
     p: MLPParams | CNNParams
 
     criterion: nn.CrossEntropyLoss
 
-    def __init__(self, params: MLPParams | CNNParams):
+    def __init__(self, train_params: NNTrainParams, params: MLPParams | CNNParams):
+        self.train = train_params
         self.p = params
         self.criterion = nn.CrossEntropyLoss()
 
@@ -78,13 +80,13 @@ class NNArchitectureAccuracyEvaluator:
         # TODO: Can be made customizable
         optimizer = optim.Adam(
             model.parameters(),
-            lr=self.p.train.learning_rate,
-            weight_decay=self.p.train.weight_decay,
+            lr=self.train.learning_rate,
+            weight_decay=self.train.weight_decay,
         )
 
         best_acc = 0.0
         best_model = None
-        for epoch in range(1, self.p.train.epochs + 1):
+        for epoch in range(1, self.train.epochs + 1):
             # Train for one epoch
             loss = self.train_epoch(model, optimizer, epoch)
             acc = self.test_model(model)
@@ -100,7 +102,7 @@ class NNArchitectureAccuracyEvaluator:
             else:
                 without_improvements += 1
 
-            should_stop_early = without_improvements >= self.p.train.early_stop_patience
+            should_stop_early = without_improvements >= self.train.early_stop_patience
             if should_stop_early:
                 logger.debug(f"Early stopping triggered after {epoch + 1} epochs")
                 break
@@ -116,8 +118,8 @@ class NNArchitectureAccuracyEvaluator:
     ) -> float:
         model.train()
 
-        amount_of_batches = len(self.p.train.train_loader)
-        amount_of_datapoints = len(self.p.train.train_loader.dataset)
+        amount_of_batches = len(self.train.train_loader)
+        amount_of_datapoints = len(self.train.train_loader.dataset)
 
         # Log progress every 25% of the batches
         log_progress_after = amount_of_batches // 4
@@ -125,7 +127,7 @@ class NNArchitectureAccuracyEvaluator:
 
         trained_on = 0
         loss_sum = 0
-        for batch_idx, (_data, _target) in enumerate(self.p.train.train_loader):
+        for batch_idx, (_data, _target) in enumerate(self.train.train_loader):
             data, target = _data.to(DEVICE), _target.to(DEVICE)
 
             # Forward pass
@@ -138,7 +140,7 @@ class NNArchitectureAccuracyEvaluator:
             loss.backward()
             optimizer.step()
 
-            trained_on += self.p.train.test_loader.batch_size
+            trained_on += self.train.test_loader.batch_size
 
             # Log progress
             log_progress_counter += 1
@@ -158,7 +160,7 @@ class NNArchitectureAccuracyEvaluator:
 
         loss_sum = 0
         correct = 0
-        for _data, _target in self.p.train.test_loader:
+        for _data, _target in self.train.test_loader:
             data, target = _data.to(DEVICE), _target.to(DEVICE)
             outputs = model(data)
 
@@ -169,10 +171,10 @@ class NNArchitectureAccuracyEvaluator:
             pred = outputs.argmax(dim=dim)
             correct += (pred == target).sum().item()
 
-        amount_of_batches = len(self.p.train.test_loader)
+        amount_of_batches = len(self.train.test_loader)
         average_loss = loss_sum / amount_of_batches
 
-        amount_of_datapoints = len(self.p.train.test_loader.dataset)
+        amount_of_datapoints = len(self.train.test_loader.dataset)
         accuracy = 100.0 * correct / amount_of_datapoints
 
         logger.debug(
@@ -184,11 +186,10 @@ class NNArchitectureAccuracyEvaluator:
 
 class NNArchitectureEvaluator:
     train: NNTrainParams
-    kfold: StratifiedKFold
+    n_folds: int = 5
 
     def __init__(self, train_params: NNTrainParams):
         self.train = train_params
-        self.kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
     def evaluate_accuracy(self, params: MLPParams | CNNParams, times=1):
         """
@@ -203,13 +204,13 @@ class NNArchitectureEvaluator:
         accuracies_per_fold: list[list[float]] = []
 
         dataloaders = self.get_dataloaders(
-            self.kfold, self.train.DatasetCls, self.train.batch_size
+            self.n_folds, self.train.DatasetCls, self.train.batch_size
         )
         for train_loader, test_loader in dataloaders:
-            params.train.train_loader = train_loader
-            params.train.test_loader = test_loader
+            self.train.train_loader = train_loader
+            self.train.test_loader = test_loader
 
-            evaluator = NNArchitectureAccuracyEvaluator(params)
+            evaluator = NNArchitectureAccuracyEvaluator(self.train, params)
             stats = evaluator.evaluate_accuracy(times)
 
             if best_model is None or stats["max"] > max(all_accuracies):
@@ -237,8 +238,13 @@ class NNArchitectureEvaluator:
     @staticmethod
     @lru_cache(maxsize=1)
     def get_dataloaders(
-        kfold: StratifiedKFold, DatasetCls: type[Dataset], batch_size: int
+        n_splits: int, DatasetCls: type[Dataset], batch_size: int
     ) -> list[tuple[data.DataLoader, data.DataLoader]]:
+        logger.debug(
+            f"Creating new dataloaders for {DatasetCls.__name__} with batch size {batch_size}"
+        )
+
+        kfold = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=SEED)
         X, y = DatasetCls.get_xy()
 
         dataloaders = []

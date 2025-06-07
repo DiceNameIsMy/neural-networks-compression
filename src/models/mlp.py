@@ -6,7 +6,7 @@ from torch import nn
 from src.models.compression import binary, ternarize, weight_quant
 from src.models.compression.enums import NNParamsCompMode, QMode
 from src.models.compression.weight_quant import Quantize
-from src.models.nn import ActivationParams, NNTrainParams
+from src.models.nn import ActivationParams
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,6 @@ class FCParams:
 @dataclass
 class MLPParams:
     fc: FCParams
-    train: NNTrainParams
 
     def get_model(self) -> "MLP":
         return MLP(self)

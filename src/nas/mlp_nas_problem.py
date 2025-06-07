@@ -26,6 +26,18 @@ class MlpNasProblem(NasProblem):
     def __init__(self, params: NasParams, DatasetCls: type[MlpDataset]):
         super().__init__(params, DatasetCls, MLPChromosome)
 
+    def get_nn_train_params(self, ch: MLPChromosome) -> NNTrainParams:
+        return NNTrainParams(
+            DatasetCls=self.DatasetCls,
+            train_loader=self.train_loader,
+            test_loader=self.test_loader,
+            batch_size=self.p.batch_size,
+            epochs=self.p.epochs,
+            learning_rate=ch.learning_rate,
+            weight_decay=ch.weight_decay,
+            early_stop_patience=self.p.patience,
+        )
+
     def get_nn_params(self, ch: MLPChromosome) -> MLPParams:
         activation = ActivationParams(
             activation=ch.activation,
@@ -39,16 +51,7 @@ class MlpNasProblem(NasProblem):
             qmode=ch.parameters_quantization_mode,
             dropout_rate=ch.dropout,
         )
-        train_params = NNTrainParams(
-            DatasetCls=self.DatasetCls,
-            train_loader=self.train_loader,
-            test_loader=self.test_loader,
-            epochs=self.p.epochs,
-            learning_rate=ch.learning_rate,
-            weight_decay=ch.weight_decay,
-            early_stop_patience=self.p.patience,
-        )
-        return MLPParams(fc=fc_params, train=train_params)
+        return MLPParams(fc=fc_params)
 
     def _make_fc_layers(self, ch: MLPChromosome) -> list[FCLayerParams]:
         layers = []
