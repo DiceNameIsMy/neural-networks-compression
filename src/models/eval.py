@@ -186,8 +186,8 @@ class NNArchitectureEvaluator:
     train: NNTrainParams
     kfold: StratifiedKFold
 
-    def __init__(self, params: NNTrainParams):
-        self.train = params
+    def __init__(self, train_params: NNTrainParams):
+        self.train = train_params
         self.kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
 
     def evaluate_accuracy(self, params: MLPParams | CNNParams, times=1):
@@ -206,8 +206,8 @@ class NNArchitectureEvaluator:
             self.kfold, self.train.DatasetCls, self.train.batch_size
         )
         for train_loader, test_loader in dataloaders:
-            self.train.train_loader = train_loader
-            self.train.test_loader = test_loader
+            params.train.train_loader = train_loader
+            params.train.test_loader = test_loader
 
             evaluator = NNArchitectureAccuracyEvaluator(params)
             stats = evaluator.evaluate_accuracy(times)
