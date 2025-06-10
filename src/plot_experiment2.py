@@ -71,7 +71,7 @@ def cnn_report_to_df(folder: str):
     for pop in population:
         acc = pop[0]
         complexity = pop[1]
-        ch = cfg.decode(pop[2:])
+        ch = cfg.decode(pop[2:].astype(int))
 
         ch_dict = asdict(ch)
         ch_dict["activation"] = ch.activation.name
